@@ -1,0 +1,11 @@
+[警告] 文件名(p2_case_current)与 case_name(sine_steer_python)不一致
+CASE_OK sine_steer_python | v0=40.0 km/h | steer=sine | t_end=12.0 s
+[trucksim_com] ProgID TruckSim.Application 连接失败: (-2147221005, '无效的类字符串', None, None)
+[trucksim_com] ProgID TruckSim2019.Application 连接失败: (-2147221005, '无效的类字符串', None, None)
+[trucksim_com] ProgID TS.Application 连接失败: (-2147221005, '无效的类字符串', None, None)
+CONFIG_WARN 无法完成 TruckSim 工况配置；继续使用当前 simfile 工况
+LISTENING 127.0.0.1:50007
+CLIENT_CONNECTED ('127.0.0.1', 58655)
+HANDSHAKE_OK
+STOP_OK
+SERVER_STOPPED
