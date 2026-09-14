@@ -1,0 +1,9 @@
+metric,value,unit
+duration,30,s
+v_start,15,km/h
+v_end,14.512137,km/h
+v_max,15.737229,km/h
+max_abs_beta,0.066251,deg
+max_abs_yaw_rate,6.344749,deg/s
+max_abs_delta1,2,deg
+max_abs_delta3,1.070738,deg
