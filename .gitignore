@@ -1,0 +1,11 @@
+# Local/temp repair files
+.tmp_fix14/
+
+# MATLAB/Simulink generated cache and local state
+MathWorks/
+**/slprj/
+*.slxc
+
+# Common OS/editor noise
+.DS_Store
+Thumbs.db
