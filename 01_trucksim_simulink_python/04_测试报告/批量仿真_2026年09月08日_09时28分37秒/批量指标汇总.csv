@@ -1,4 +1,0 @@
-﻿run_number,case_name,steer_input_type,duration_s,v_start_kmh,v_end_kmh,v_max_kmh,max_abs_beta_deg,max_abs_yaw_degps,max_abs_delta1_deg,max_abs_delta3_deg
-2026年09月08日_09时28分40秒_第001次,sine_steer_python-1,sine,30,15,15.08,15.09,0.05992,6.224,2,1.027
-2026年09月08日_09时28分42秒_第002次,sine_steer_python,sine,12,40,40.13,40.47,0.1519,8.143,2,0.355
-2026年09月08日_09时28分43秒_第003次,step_steer_python,step,10,40,39.91,40.5,0.5406,12.87,3,0.5986

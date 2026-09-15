@@ -1,8 +1,0 @@
-[警告] 文件名(p2_case_current)与 case_name(sine_steer_python-1)不一致
-CASE_OK sine_steer_python-1 | v0=15.0 km/h | steer=sine | t_end=30.0 s
-CONFIG_SKIP（未启用 TruckSim COM，以当前 simfile 工况为准）
-LISTENING 127.0.0.1:50007
-CLIENT_CONNECTED ('127.0.0.1', 65429)
-HANDSHAKE_OK
-STOP_OK
-SERVER_STOPPED
