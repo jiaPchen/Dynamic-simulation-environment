@@ -1,0 +1,23 @@
+key,value
+run_number,2026年09月08日_09时36分04秒_第004次
+timestamp_local_iso8601,2026-09-08T09:36:04
+model_name,three_axle_vehicle_2dof_3dof_Trucksim_python
+schema_version,3
+case_name,step_steer_python
+source_case_id,MV-201
+trucksim_scenario,straight_road
+description,40 km/h 直线行驶 1 s 后第一轴施加 3 度阶跃转角，Python 控制器分配二/三轴转角
+stop_time_s,10
+initial_speed_kmh,40
+target_speed_kmh,40
+steer_input_type,step
+steer_amplitude_deg,3
+steer_frequency_hz,0
+steer_start_time_s,1
+road_friction,0.85
+road_grade,0.0
+controller_mode,zero_sideslip
+control_dt_s,0.01
+kp_beta,0.6
+ki_beta,0.5
+max_steer_deg,20
