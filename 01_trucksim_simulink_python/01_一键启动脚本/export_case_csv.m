@@ -57,6 +57,23 @@ for i = 1:nsig
     used(i) = true;
 end
 
+% 时间列是所有导出信号的物理时间基准。过去这里用最短列静默截断，
+% 会把 20 s 仿真错误写成 2 s。阶段二要求所有实际导出列逐行对齐；
+% 不一致时应由上游修复时间轴，而不是生成看似完整的 CSV。
+timeIdx = find(strcmp(signals(:, 2), 'sim_time_s') & used, 1);
+if isempty(timeIdx)
+    error('export_case_csv:NoTimeColumn', '缺少 sim_time_s 时间列，拒绝导出 CSV。');
+end
+nref = numel(cols{timeIdx});
+for i = find(used(:))'
+    if numel(cols{i}) ~= nref
+        error('export_case_csv:LengthMismatch', ...
+            ['信号 "%s" 的行数(%d)与 sim_time_s 的行数(%d)不一致；' ...
+             '拒绝导出 CSV。'], signals{i, 2}, numel(cols{i}), nref);
+    end
+end
+nmin = nref;
+
 % ---- Build the table with traceability columns ----
 T = table();
 T.sample_index = (1:nmin)';

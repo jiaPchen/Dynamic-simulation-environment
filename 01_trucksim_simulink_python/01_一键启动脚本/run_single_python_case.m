@@ -150,25 +150,33 @@ signals = {
     'delta3_actual',    'cmd_delta3_deg';
 };
 
-% TruckSim 实际输入（TCP Client 输出的 6 路转角）拆成三轴后加入导出
+% TruckSim 实际输入（TCP Client 输出的 6 路转角）稍后与目标时间轴对齐后
+% 再拆成三轴，避免它与密集 TruckSim 状态信号的采样数不同。
+deltaCmd6 = [];
 try
     dc = out.delta_cmd6;
     if isa(dc, 'timeseries')
-        dt6 = dc.Time;
-        assignin('base', 'delta1_actual', timeseries(dc.Data(:, 1), dt6));
-        assignin('base', 'delta2_actual', timeseries(dc.Data(:, 3), dt6));
-        assignin('base', 'delta3_actual', timeseries(dc.Data(:, 5), dt6));
+        deltaCmd6 = dc;
     end
 catch
     warning('run_single_python_case:NoDeltaCmd', '未取到 delta_cmd6（TruckSim 实际输入），相关列跳过。');
 end
-% 时间轴优先使用 TCP 服务逐步记录的 sim_time_s。当前 TruckSim S-Function
-% 的 out.tout 在部分模型版本中会被缩小为 0.1 倍；其行数与状态信号正确，
-% 但时间值不能直接作为 CSV 的物理时间。Python 日志中的时间来自 TCP Client
-% 的 block.CurrentTime，且与每行 STATE/CONTROL 一一对应。
+% Python TCP 时间轴采用控制周期（当前 0.01 s），而 TruckSim 输出可能是
+% 更密的基础步长（当前 0.001 s）。以 Python 时间为目标时间轴，并将每个
+% TruckSim 状态重采样到该时间轴后再导出，保证所有 CSV 列逐行对应。
 [tt, timeSource, rawToutEnd, tcpTimeEnd] = resolve_export_time(out, pylog, ...
     str2double(c.stop_time_s));
 assignin('base', 't', tt(:));
+if ~isempty(deltaCmd6)
+    dcAligned = align_signal_to_time(deltaCmd6, tt, 'delta_cmd6');
+    if size(dcAligned.Data, 2) < 5
+        error('run_single_python_case:BadDeltaCmd', ...
+            'delta_cmd6 少于 5 个通道，无法导出三轴转角。');
+    end
+    assignin('base', 'delta1_actual', timeseries(dcAligned.Data(:, 1), tt));
+    assignin('base', 'delta2_actual', timeseries(dcAligned.Data(:, 3), tt));
+    assignin('base', 'delta3_actual', timeseries(dcAligned.Data(:, 5), tt));
+end
 c.export_time_source = timeSource;
 c.raw_out_tout_end_s = sprintf('%.12g', rawToutEnd);
 c.tcp_sim_time_end_s = sprintf('%.12g', tcpTimeEnd);
@@ -178,9 +186,10 @@ for i = 1:size(signals, 1)
     v = signals{i, 1};
     if any(strcmp(v, baseOnly)), continue; end
     try
-        assignin('base', v, out.(v));
-    catch
-        warning('run_single_python_case:NoOutVar', '缺少输出: %s', v);
+        assignin('base', v, align_signal_to_time(out.(v), tt, v));
+    catch ME
+        error('run_single_python_case:SignalAlignFailed', ...
+            '无法将输出 "%s" 对齐到 Python 时间轴：%s', v, ME.message);
     end
 end
 
@@ -251,10 +260,9 @@ end
 end
 
 function [t, source, rawToutEnd, tcpTimeEnd] = resolve_export_time(out, pyLog, stopTime)
-% RESOLVE_EXPORT_TIME  Select a traceable physical-time vector for CSV export.
-% Prefer the TCP STATE timestamps only after strict integrity checks.  This
-% keeps TruckSim/Simulink signal rows aligned with the controller's actual
-% simulation clock while retaining a safe fallback for offline/debug runs.
+% RESOLVE_EXPORT_TIME  Select the Python control timeline for CSV export.
+% TruckSim state signals are resampled to this returned timeline by
+% align_signal_to_time before export_case_csv is called.
 
 try
     rawT = double(out.tout(:));
@@ -266,15 +274,43 @@ if isempty(rawT) || any(~isfinite(rawT)) || any(diff(rawT) < -1e-9)
         'SimulationOutput 的时间向量为空、非有限或非单调，无法导出 CSV。');
 end
 
-t = rawT;
-source = 'simulation_output_tout';
 rawToutEnd = rawT(end);
 tcpTimeEnd = NaN;
 
+% 以实际导出的车辆状态的时间向量为准，而不是 solver 的 out.tout。
+% 所有阶段二正式 CSV 都包含 Vx_trucksim，因此它是最可靠的对齐锚点。
+try
+    vx = out.Vx_trucksim;
+    if isa(vx, 'timeseries')
+        signalT = double(vx.Time(:));
+    elseif isstruct(vx) && isfield(vx, 'time')
+        signalT = double(vx.time(:));
+    else
+        error('Vx_trucksim 不含可读取的时间向量');
+    end
+catch ME
+    error('run_single_python_case:NoSignalTime', ...
+        '无法取得 Vx_trucksim 的时间轴，拒绝导出未对齐 CSV：%s', ME.message);
+end
+
+if isempty(signalT) || any(~isfinite(signalT)) || any(diff(signalT) < -1e-9)
+    error('run_single_python_case:InvalidSignalTime', ...
+        'Vx_trucksim 时间轴为空、非有限或非单调，拒绝导出 CSV。');
+end
+
+tol = max(0.02, 0.01 * max(stopTime, 1));
+if abs(signalT(1)) > tol || abs(signalT(end) - stopTime) > tol
+    error('run_single_python_case:SignalTimeCoverage', ...
+        ['Vx_trucksim 时间轴未从 0 覆盖到停止时间（首=%.9g，末=%.9g，期望末=%.9g）；' ...
+         '拒绝导出 CSV。'], signalT(1), signalT(end), stopTime);
+end
+
+t = signalT;
+source = 'trucksim_signal_time';
+
 if ~exist(pyLog, 'file')
-    warning('run_single_python_case:NoPythonTimeLog', ...
-        '未找到 Python 时间日志，CSV 使用 SimulationOutput 时间轴。');
-    return;
+    error('run_single_python_case:NoPythonTimeLog', ...
+        '未找到 Python 时间日志，拒绝导出无法交叉验证时间轴的 CSV。');
 end
 
 try
@@ -284,39 +320,61 @@ try
     end
     tcpT = double(pyTable.sim_time_s(:));
 catch ME
-    warning('run_single_python_case:PythonTimeReadFailed', ...
-        '无法读取 Python 时间日志，CSV 使用 SimulationOutput 时间轴：%s', ME.message);
-    return;
+    error('run_single_python_case:PythonTimeReadFailed', ...
+        '无法读取 Python 时间日志，拒绝导出 CSV：%s', ME.message);
 end
 
 if isempty(tcpT) || any(~isfinite(tcpT)) || any(diff(tcpT) < -1e-9)
-    warning('run_single_python_case:InvalidPythonTime', ...
-        'Python 时间日志为空、非有限或非单调，CSV 使用 SimulationOutput 时间轴。');
-    return;
+    error('run_single_python_case:InvalidPythonTime', ...
+        'Python 时间日志为空、非有限或非单调，拒绝导出 CSV。');
 end
 tcpTimeEnd = tcpT(end);
 
-% 每一条 TCP STATE 必须对应一行输出信号；不允许靠插值或截断掩盖错位。
-if numel(tcpT) ~= numel(rawT)
-    warning('run_single_python_case:PythonTimeLengthMismatch', ...
-        ['Python 时间行数(%d)与 SimulationOutput 时间行数(%d)不一致；' ...
-         'CSV 使用 SimulationOutput 时间轴。'], numel(tcpT), numel(rawT));
-    return;
-end
-
-tol = max(0.02, 0.01 * max(stopTime, 1));
 if ~isfinite(stopTime) || abs(tcpT(1)) > tol || abs(tcpT(end) - stopTime) > tol
-    warning('run_single_python_case:PythonTimeCoverage', ...
+    error('run_single_python_case:PythonTimeCoverage', ...
         ['Python 时间轴未从 0 覆盖到用例停止时间（首=%.9g，末=%.9g，期望末=%.9g）；' ...
-         'CSV 使用 SimulationOutput 时间轴。'], tcpT(1), tcpT(end), stopTime);
-    return;
+         '拒绝导出 CSV。'], tcpT(1), tcpT(end), stopTime);
 end
 
 t = tcpT;
 source = 'python_tcp_sim_time_s';
-if abs(rawToutEnd - tcpTimeEnd) > tol
-    warning('run_single_python_case:TimeAxisCorrected', ...
-        ['已使用 Python TCP 时间轴修正 CSV 时间：SimulationOutput 末值 %.9g s，' ...
-         'TCP 末值 %.9g s。'], rawToutEnd, tcpTimeEnd);
 end
+
+function aligned = align_signal_to_time(signal, targetT, signalName)
+% ALIGN_SIGNAL_TO_TIME  Resample one TruckSim/Simulink output to targetT.
+% targetT is the validated Python TCP timeline.  Linear interpolation is
+% exact at common sample points and prevents the old shortest-column truncation.
+if isa(signal, 'timeseries')
+    sourceT = double(signal.Time(:));
+    data = double(signal.Data);
+elseif isstruct(signal) && isfield(signal, 'time') && isfield(signal, 'signals')
+    sourceT = double(signal.time(:));
+    data = double(signal.signals.values);
+else
+    error('输出不是带时间的 timeseries/StructureWithTime。');
+end
+
+if isvector(data)
+    data = data(:);
+end
+if size(data, 1) ~= numel(sourceT)
+    error('时间行数(%d)与数据行数(%d)不一致。', numel(sourceT), size(data, 1));
+end
+if isempty(sourceT) || any(~isfinite(sourceT)) || any(diff(sourceT) < -1e-9)
+    error('源时间轴为空、非有限或非单调。');
+end
+if targetT(1) < sourceT(1) - 1e-9 || targetT(end) > sourceT(end) + 1e-9
+    error(['目标时间轴[%.9g, %.9g]超出 "%s" 源时间轴[%.9g, %.9g]。'], ...
+        targetT(1), targetT(end), signalName, sourceT(1), sourceT(end));
+end
+
+if numel(sourceT) == numel(targetT) && max(abs(sourceT - targetT)) <= 1e-9
+    dataTarget = data;
+else
+    dataTarget = interp1(sourceT, data, targetT, 'linear');
+end
+if any(~isfinite(dataTarget(:)))
+    error('重采样后出现非有限数据。');
+end
+aligned = timeseries(dataTarget, targetT);
 end
