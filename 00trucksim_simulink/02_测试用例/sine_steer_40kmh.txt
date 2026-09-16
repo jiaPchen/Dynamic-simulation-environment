@@ -10,6 +10,6 @@ target_speed_kmh = 40
 steer_input_type = sine
 steer_amplitude_deg = 2
 steer_frequency_hz = 0.2
-steer_start_time_s = 0
+steer_start_time_s = 1
 road_friction = 0.85
 road_grade = 0.0

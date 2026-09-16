@@ -61,6 +61,7 @@ end
 logDir  = fullfile(tempdir, ['p2_log_' datestr(now, 'yyyymmdd_HHMMSS')]);
 mkdir(logDir);
 logFile = fullfile(logDir, 'server_stdout.log');
+pylog   = fullfile(logDir, 'python_signals.csv');
 serverPy = fullfile(controllerRoot, 'tcp', 'tcp_server.py');
 
 % 用例复制到 ASCII 临时路径，避免 system() 命令里的中文路径被 cmd 乱码
@@ -161,12 +162,16 @@ try
 catch
     warning('run_single_python_case:NoDeltaCmd', '未取到 delta_cmd6（TruckSim 实际输入），相关列跳过。');
 end
-try
-    tt = out.tout;
-catch
-    tt = out.x_trucksim.Time;
-end
+% 时间轴优先使用 TCP 服务逐步记录的 sim_time_s。当前 TruckSim S-Function
+% 的 out.tout 在部分模型版本中会被缩小为 0.1 倍；其行数与状态信号正确，
+% 但时间值不能直接作为 CSV 的物理时间。Python 日志中的时间来自 TCP Client
+% 的 block.CurrentTime，且与每行 STATE/CONTROL 一一对应。
+[tt, timeSource, rawToutEnd, tcpTimeEnd] = resolve_export_time(out, pylog, ...
+    str2double(c.stop_time_s));
 assignin('base', 't', tt(:));
+c.export_time_source = timeSource;
+c.raw_out_tout_end_s = sprintf('%.12g', rawToutEnd);
+c.tcp_sim_time_end_s = sprintf('%.12g', tcpTimeEnd);
 % 仅存在于 base 工作区的变量（不从 out 读取，避免 SimulationOutput 缺字段警告覆盖为空值）
 baseOnly = {'t', 'delta1_actual', 'delta2_actual', 'delta3_actual'};
 for i = 1:size(signals, 1)
@@ -242,5 +247,76 @@ else
         error('run_single_python_case:BadComMode', ...
             'useTrucksimCom 只能是 true、false 或 ''auto''。');
     end
+end
+end
+
+function [t, source, rawToutEnd, tcpTimeEnd] = resolve_export_time(out, pyLog, stopTime)
+% RESOLVE_EXPORT_TIME  Select a traceable physical-time vector for CSV export.
+% Prefer the TCP STATE timestamps only after strict integrity checks.  This
+% keeps TruckSim/Simulink signal rows aligned with the controller's actual
+% simulation clock while retaining a safe fallback for offline/debug runs.
+
+try
+    rawT = double(out.tout(:));
+catch
+    rawT = double(out.x_trucksim.Time(:));
+end
+if isempty(rawT) || any(~isfinite(rawT)) || any(diff(rawT) < -1e-9)
+    error('run_single_python_case:InvalidRawTime', ...
+        'SimulationOutput 的时间向量为空、非有限或非单调，无法导出 CSV。');
+end
+
+t = rawT;
+source = 'simulation_output_tout';
+rawToutEnd = rawT(end);
+tcpTimeEnd = NaN;
+
+if ~exist(pyLog, 'file')
+    warning('run_single_python_case:NoPythonTimeLog', ...
+        '未找到 Python 时间日志，CSV 使用 SimulationOutput 时间轴。');
+    return;
+end
+
+try
+    pyTable = readtable(pyLog);
+    if ~ismember('sim_time_s', pyTable.Properties.VariableNames)
+        error('缺少 sim_time_s 列');
+    end
+    tcpT = double(pyTable.sim_time_s(:));
+catch ME
+    warning('run_single_python_case:PythonTimeReadFailed', ...
+        '无法读取 Python 时间日志，CSV 使用 SimulationOutput 时间轴：%s', ME.message);
+    return;
+end
+
+if isempty(tcpT) || any(~isfinite(tcpT)) || any(diff(tcpT) < -1e-9)
+    warning('run_single_python_case:InvalidPythonTime', ...
+        'Python 时间日志为空、非有限或非单调，CSV 使用 SimulationOutput 时间轴。');
+    return;
+end
+tcpTimeEnd = tcpT(end);
+
+% 每一条 TCP STATE 必须对应一行输出信号；不允许靠插值或截断掩盖错位。
+if numel(tcpT) ~= numel(rawT)
+    warning('run_single_python_case:PythonTimeLengthMismatch', ...
+        ['Python 时间行数(%d)与 SimulationOutput 时间行数(%d)不一致；' ...
+         'CSV 使用 SimulationOutput 时间轴。'], numel(tcpT), numel(rawT));
+    return;
+end
+
+tol = max(0.02, 0.01 * max(stopTime, 1));
+if ~isfinite(stopTime) || abs(tcpT(1)) > tol || abs(tcpT(end) - stopTime) > tol
+    warning('run_single_python_case:PythonTimeCoverage', ...
+        ['Python 时间轴未从 0 覆盖到用例停止时间（首=%.9g，末=%.9g，期望末=%.9g）；' ...
+         'CSV 使用 SimulationOutput 时间轴。'], tcpT(1), tcpT(end), stopTime);
+    return;
+end
+
+t = tcpT;
+source = 'python_tcp_sim_time_s';
+if abs(rawToutEnd - tcpTimeEnd) > tol
+    warning('run_single_python_case:TimeAxisCorrected', ...
+        ['已使用 Python TCP 时间轴修正 CSV 时间：SimulationOutput 末值 %.9g s，' ...
+         'TCP 末值 %.9g s。'], rawToutEnd, tcpTimeEnd);
 end
 end

@@ -22,7 +22,8 @@ MATLAB 脚本读取 TXT 工况并启动 Python TCP 服务。Simulink 在每个 0
   01_一键启动脚本/
     run_case_python.m                                  # 单工况入口
     run_batch_python.m                                 # 批量入口
-    run_single_python_case.m                           # 核心调度
+    run_single_python_case.m                           # 核心调度与时间轴来源记录
+    run_local_preflight.m                              # 不写入 TruckSim 的本机预检
   02_测试用例/                                        # 阶跃、正弦 TXT 用例
   03_数据存储/Python联仿/                             # 单工况 CSV、日志和用例副本
   04_测试报告/                                        # 单工况/批量报告与曲线
@@ -57,7 +58,7 @@ TCP 端口 50007 是否可用：是/否/未知
 是否允许 AI 修改项目内脚本和 YAML：是/否
 ```
 
-历史验证环境为 Windows、MATLAB R2021a、TruckSim 2019.0、Python 3.13.15。Python 需要 `pyyaml`、`numpy`、`matplotlib`、`python-docx`；`pywin32` 仅用于 TruckSim COM，非 COM 回退路径不依赖它。
+本机验证环境为 Windows、MATLAB R2021a、TruckSim 2019.0、Python 3.10.4（`C:\Python\python\python3.10.4\python.exe`）。Python 需要 `pyyaml`、`numpy`、`matplotlib`、`python-docx`；`pywin32` 仅用于 TruckSim COM，非 COM 回退路径不依赖它。
 
 ## AI 的换机处理顺序
 
@@ -65,7 +66,7 @@ TCP 端口 50007 是否可用：是/否/未知
 2. 检查目标机 Python、`simfile.sim`、solver 目录和 `Matlab84+` 是否存在；确认 TruckSim 数据目录和当前 Run 与使用者提供的信息一致。
 3. 在修改前报告旧路径→新路径映射及每个将修改的源文件。历史 CSV、报告、`batch_run_dirs.txt` 和 manifest 的旧 D 盘路径仅代表历史记录，不得批量替换。
 4. 仅同步下方“必须改为本机路径”的配置点。特别是 MATLAB 的 `trucksimSimFile` 与 YAML 的 `simfile_path` 必须指向**同一个、且确为 S-Function 实际使用的** `simfile.sim`。
-5. 先运行 Python 离线测试；再在使用者确认 Run 和数据备份后跑一个单工况；通过后才能批量运行。
+5. 先运行 `run_local_preflight` 与 Python 离线测试；再在使用者确认 Run 和数据备份后跑一个单工况。除常规日志、CSV、曲线、报告检查外，必须确认 `trucksim_io.csv` 和 `python_signals.csv` 的 `sim_time_s` 末值均等于 TXT 的停止时间；通过后才能批量运行。
 
 ## 必须改为本机路径的位置
 
@@ -77,6 +78,7 @@ TCP 端口 50007 是否可用：是/否/未知
 | 同上 | `trucksimSimFile` | S-Function 实际使用的 `simfile.sim` |
 | `01_一键启动脚本/run_case_python.m` | `caseFile` | 默认单工况 TXT；建议填项目内用例 |
 | `01_一键启动脚本/run_batch_python.m` | `phase2Root`、`pythonExe` | 批量入口的项目根目录和 Python |
+| `01_一键启动脚本/run_local_preflight.m` | `pythonExe`、`trucksimSolverDir`、`trucksimSimFile` | 只读预检使用的本机路径，应与实际运行保持一致 |
 | `05_python_controller/config/vehicle_config.yaml` | `trucksim.run_name` | 目标机实际固定联仿 Run 名称 |
 | 同上 | `trucksim.simfile_path` | 必须与 MATLAB 的 `trucksimSimFile` 相同 |
 | 同上 | `trucksim.com_progids`、`com_keywords` | 仅目标机 TruckSim COM 验证后才可调整 |
@@ -132,6 +134,7 @@ TCP 端口 50007 是否可用：是/否/未知
 5. 在已确认 TruckSim 数据备份和写入许可后，运行 `run_case_python`。
 6. 检查运行目录内的 `*_python_stdout.log` 是否有 `CONFIG_READY`、`HANDSHAKE_OK` 和 `SERVER_STOPPED`，以及 CSV 和 Word 报告是否生成。
 7. 低速用例应验证 `v_start_kmh` 接近 TXT 的 `initial_speed_kmh`；例如 15 km/h 用例不应仍显示约 40 km/h。
+8. 比较 `*_trucksim_io.csv` 与 `*_python_signals.csv` 的 `sim_time_s` 末值。第032次曾出现 Python 到 20 s、TruckSim IO 仅到 2 s 的截断，故两者均达到 TXT 停止时间才算时间轴验收通过。
 
 ### 3. 批量联仿
 
@@ -147,6 +150,7 @@ TCP 端口 50007 是否可用：是/否/未知
 | 找不到 TruckSim S-Function 或 solver | `trucksimSolverDir`、`Matlab84+`、MATLAB/TruckSim 版本兼容性 |
 | 报告失败 | Python 依赖、运行目录中的 CSV 是否完整、`*_python_stdout.log` 和 MATLAB 命令行错误 |
 | TCP 信号维度或 step_id 错误 | 不要改协议字段顺序；确认 3 输入、6 输出及 `control_dt_s=0.01` 在两端一致 |
+| `trucksim_io.csv` 末时间小于 TXT 停止时间 | 当前已知导出行数/时间向量对齐问题；保留该次产物，比较 Python 时间日志和 `case_info.csv`，不要用报告结论代替原始时间轴验证 |
 
 ## 可直接发给 AI 的请求
 

@@ -1,40 +1,37 @@
-﻿function ok = trucksim_config(caseStruct)
-% TRUCKSIM_CONFIG  Configure the fixed TruckSim run from a TXT case.
-%  Planned implementation per the detailed design doc (section 6.3):
-%    connect TruckSim.Application -> locate the fixed run ->
-%    set speed/friction/grade/scenario/stop time -> read back -> CONFIG_READY
-%
-%  WARNING: the TXT-field -> TruckSim dataset/control mapping must be
-%  verified on the target industrial PC before this function is used.
-%  This file is a framework only and does not modify any TruckSim data.
+function ok = trucksim_config(caseStruct, caseFile, pythonExe, simfilePath)
+% TRUCKSIM_CONFIG  Apply one TXT case before the TruckSim S-Function starts.
+% Uses the shared, verified COM/par-file fallback from phase two. When COM is
+% unavailable it updates the active simfile's parameter files with backups.
 
 ok = false;
-
-% 1) Connect to the TruckSim COM service (TruckSim 2019).
-try
-    ts = actxserver('TruckSim.Application');
-catch ME
-    warning('trucksim_config:NoCOM', ...
-        'Cannot connect to TruckSim.Application: %s', ME.message);
+scriptDir = fileparts(mfilename('fullpath'));
+configScript = fullfile(scriptDir, 'configure_trucksim_case.py');
+if ~exist(configScript, 'file') || ~exist(pythonExe, 'file') || ...
+        ~exist(simfilePath, 'file')
+    warning('trucksim_config:ConfigHelperMissing', ...
+        'TruckSim configuration helper, Python, or simfile is missing.');
     return;
 end
-cleanupObj = onCleanup(@() delete(ts));
 
-% 2) Locate the fixed co-simulation run (name must match the target PC).
-% runObj = ts.GetRunByName('fixed_run_name');
-
-% 3) Apply all case parameters. Example once the mapping is verified:
-% runObj.VehicleInitialSpeed = str2double(caseStruct.initial_speed_kmh) / 3.6;
-% runObj.RoadFriction        = str2double(caseStruct.road_friction);
-% runObj.RoadGrade           = str2double(caseStruct.road_grade);
-
-% 4) Read back and verify, then return CONFIG_READY.
-% if abs(runObj.VehicleInitialSpeed - target) < 1e-6
-%     ok = true;
-% end
-
-error('trucksim_config:NotImplemented', ...
-    ['TruckSim COM mapping is not verified yet. ' ...
-     'Fill in the dataset/control mapping on the target machine ' ...
-     'before enabling useTrucksimCom.']);
+% Use an ASCII temporary filename because MATLAB system() can otherwise
+% garble the Chinese project path on some Windows installations.
+caseCopy = [tempname '.txt'];
+try
+    copyfile(caseFile, caseCopy);
+    oldDir = cd(scriptDir);
+    cleanupDir = onCleanup(@() cd(oldDir)); %#ok<NASGU>
+    cmd = sprintf('"%s" configure_trucksim_case.py --case "%s" --simfile "%s"', ...
+        pythonExe, caseCopy, simfilePath);
+    [st, msg] = system(cmd);
+    fprintf('%s\n', msg);
+    ok = st == 0 && contains(msg, 'CONFIG_READY');
+catch ME
+    warning('trucksim_config:ConfigHelperFailed', '%s', ME.message);
+end
+if exist(caseCopy, 'file')
+    delete(caseCopy);
+end
+if ok
+    fprintf('TruckSim case configuration verified: %s\n', caseStruct.case_name);
+end
 end

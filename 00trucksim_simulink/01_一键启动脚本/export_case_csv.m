@@ -9,7 +9,8 @@ function [ioCsv, infoCsv, runNo] = export_case_csv(dataRoot, userName, caseStruc
 %  Output layout:  dataRoot\userName\运行编号\运行编号_trucksim_io.csv
 %                  dataRoot\userName\运行编号\运行编号_case_info.csv
 %  Return values:  ioCsv/infoCsv 文件路径；runNo 运行编号（供报告脚本使用）。
-%  Run number format follows the project convention:
+%  Run number is shared by every test category under dataRoot.  It follows
+%  the project convention:
 %      2026年08月27日_10时30分00秒_第001次
 
 % ---- Run number ----
@@ -18,7 +19,9 @@ userDir = fullfile(dataRoot, userName);
 if ~exist(userDir, 'dir')
     mkdir(userDir);
 end
-nRun = numel(dir(fullfile(userDir, '*_第*次'))) + 1;
+% 运行编号不按 userName（例如“阶跃输入转角”“正弦输入转角”）分别计数；
+% 而是在整个数据根目录中取已有最大编号加一，保证所有工况连续编号。
+nRun = next_global_run_number(dataRoot);
 runNo = sprintf('%04d年%02d月%02d日_%02d时%02d分%02d秒_第%03d次', ...
     st(1), st(2), st(3), st(4), st(5), fix(st(6)), nRun);
 
@@ -92,6 +95,31 @@ if isfield(s, f)
 else
     v = dflt;
 end
+end
+
+function nRun = next_global_run_number(dataRoot)
+% NEXT_GLOBAL_RUN_NUMBER  Find the next shared run number under dataRoot.
+% Only immediate category folders are scanned.  Historical folders with an
+% unparseable name are ignored rather than affecting the next sequence.
+nRun = 1;
+categories = dir(dataRoot);
+maxRun = 0;
+for i = 1:numel(categories)
+    if ~categories(i).isdir || startsWith(categories(i).name, '.')
+        continue;
+    end
+    runs = dir(fullfile(dataRoot, categories(i).name, '*_第*次'));
+    for j = 1:numel(runs)
+        if ~runs(j).isdir
+            continue;
+        end
+        token = regexp(runs(j).name, '_第(\d+)次$', 'tokens', 'once');
+        if ~isempty(token)
+            maxRun = max(maxRun, str2double(token{1}));
+        end
+    end
+end
+nRun = maxRun + 1;
 end
 
 

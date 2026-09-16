@@ -40,3 +40,4 @@ delta3 = delta3_ff + fb
 - TruckSim COM 属性映射集中在 `config/vehicle_config.yaml` 的 `trucksim.com_keywords` 和 `trucksim.scenario_map`。COM 不可用时，`trucksim.simfile_path` 和 `allow_par_file_patch` 控制方法2的 `.par` 文件直写回退。
 - `run_case_python.m` 中 `opt.useTrucksimCom = true` 表示配置失败即中止，适合正式验收；改为 `'auto'` 时配置失败会警告并继续用当前 simfile；改为 `false`/`0` 时完全跳过 TruckSim 工况配置，适合离线调试。
 - `road_grade` 仍需在目标机确认 TruckSim 控件名后启用映射；非零坡度且无映射时会配置失败，避免静默按错误工况运行。
+- 时间轴导出仍需真实复核：第032次的 Python TCP 日志覆盖 0 至 20 s，但同次 `trucksim_io.csv` 只有 0 至 2 s。下一次联仿必须比较 `trucksim_io.csv` 与 `python_signals.csv` 的 `sim_time_s` 末值；两者均等于 TXT 的 `stop_time_s` 后，才能视为原始数据时间轴通过。

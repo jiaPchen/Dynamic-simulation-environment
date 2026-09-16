@@ -39,7 +39,8 @@ from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Cm, Inches, Pt, RGBColor, Twips
 
-ROOT = r"D:\动力学仿真环境"
+# 以本脚本所在的阶段一目录为根目录，项目移动后仍可直接使用。
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEFAULT_DATA_ROOT = os.path.join(ROOT, "03_数据存储")
 DEFAULT_USER = "阶跃输入转角"
 DEFAULT_CASE_DIR = os.path.join(ROOT, "02_测试用例")
@@ -627,8 +628,8 @@ def main():
         "转向输入 delta_input（deg）由 run_case_new.m 按测试用例生成 "
         "timeseries(steer_input) 后经模型内 From Workspace（Steering Input）输入，"
         "仅作用于第一轴，第二、第三轴转角固定为 0。"
-        "注意：TruckSim 侧初始工况以固定 simfile 为准（trucksim_config.m 的 "
-        "COM 映射未启用），与用例 initial_speed_kmh 可能不一致。"
+        "仿真前由入口脚本按 TXT 配置 TruckSim；配置、时长、初始速度和实际转向"
+        "均在 CSV 导出前验证。"
     )
 
     sections = [
@@ -648,7 +649,8 @@ def main():
          "fileName": "07_speed_vs_lateral.png", "note": ""},
         {"title": "转向输入信号（delta，第一轴）", "available": delta_ok,
          "fileName": "08_steer_delta.png" if delta_ok else "",
-         "note": "数据文件（trucksim_io.csv）中暂无转向输入信号列。"
+         "note": "" if delta_ok else
+                 "数据文件（trucksim_io.csv）中暂无转向输入信号列。"
                  "请确认模型含 To Workspace(delta_input) 并重新运行。"},
     ]
 
@@ -667,9 +669,8 @@ def main():
         conclusion_note = case["conclusion_note"]
     elif speed_mismatch:
         conclusion_note = (
-            "注意：TruckSim 实际起始车速 %.6g km/h 与用例设定 %g km/h 不一致"
-            "（TruckSim 工况以固定 simfile 为准）；如需按用例初始车速运行，"
-            "请完成 trucksim_config.m 的 COM 映射后启用 useTrucksimCom。"
+            "异常：TruckSim 实际起始车速 %.6g km/h 与用例设定 %g km/h 不一致。"
+            "此结果不应由当前严格入口产生，请检查历史数据或配置过程。"
             % (m["v_start_kmh"], init_v)
         )
     else:

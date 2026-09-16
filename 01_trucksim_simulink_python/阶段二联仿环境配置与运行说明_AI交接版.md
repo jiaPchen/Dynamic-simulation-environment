@@ -24,16 +24,16 @@
 
 | 项目 | 当前路径 |
 |---|---|
-| 阶段二根目录 | `D:\动力学仿真环境阶段二\01_trucksim_simulink_python` |
-| MATLAB 一键脚本 | `D:\动力学仿真环境阶段二\01_trucksim_simulink_python\01_一键启动脚本` |
-| Simulink 模型目录 | `D:\动力学仿真环境阶段二\01_trucksim_simulink_python\00_simulink` |
-| Python 控制器目录 | `D:\动力学仿真环境阶段二\01_trucksim_simulink_python\05_python_controller` |
-| TXT 测试用例目录 | `D:\动力学仿真环境阶段二\01_trucksim_simulink_python\02_测试用例` |
-| 单工况数据输出 | `D:\动力学仿真环境阶段二\01_trucksim_simulink_python\03_数据存储\Python联仿` |
-| 测试报告输出 | `D:\动力学仿真环境阶段二\01_trucksim_simulink_python\04_测试报告` |
-| Python 解释器 | `D:\05_python\python.exe` |
-| TruckSim simfile | `D:\04_trucksim\TruckSim2019.0_Data\simfile.sim` |
-| TruckSim solver | `D:\04_trucksim\TruckSim2019.0_Prog\Programs\solvers` |
+| 阶段二根目录 | `C:\Users\ccc\Desktop\动力学仿真环境阶段二\01_trucksim_simulink_python` |
+| MATLAB 一键脚本 | `C:\Users\ccc\Desktop\动力学仿真环境阶段二\01_trucksim_simulink_python\01_一键启动脚本` |
+| Simulink 模型目录 | `C:\Users\ccc\Desktop\动力学仿真环境阶段二\01_trucksim_simulink_python\00_simulink` |
+| Python 控制器目录 | `C:\Users\ccc\Desktop\动力学仿真环境阶段二\01_trucksim_simulink_python\05_python_controller` |
+| TXT 测试用例目录 | `C:\Users\ccc\Desktop\动力学仿真环境阶段二\01_trucksim_simulink_python\02_测试用例` |
+| 单工况数据输出 | `C:\Users\ccc\Desktop\动力学仿真环境阶段二\01_trucksim_simulink_python\03_数据存储\Python联仿` |
+| 测试报告输出 | `C:\Users\ccc\Desktop\动力学仿真环境阶段二\01_trucksim_simulink_python\04_测试报告` |
+| Python 解释器 | `C:\Python\python\python3.10.4\python.exe` |
+| TruckSim simfile | `C:\Trucksim2019\TruckSim2019.0_Data\simfile.sim` |
+| TruckSim solver | `C:\Trucksim2019\TruckSim2019.0_Prog\Programs\solvers` |
 
 ## 3. 目录职责
 
@@ -81,18 +81,18 @@
 - Windows。
 - MATLAB R2021a + Simulink。
 - TruckSim 2019.0。
-- Python 3.13.15，当前解释器为 `D:\05_python\python.exe`。
+- Python 3.10.4，当前解释器为 `C:\Python\python\python3.10.4\python.exe`。
 
 Python 必需依赖：
 
 ```powershell
-& "D:\05_python\python.exe" -m pip install pyyaml numpy matplotlib python-docx
+& "C:\Python\python\python3.10.4\python.exe" -m pip install pyyaml numpy matplotlib python-docx
 ```
 
 Python 可选依赖：
 
 ```powershell
-& "D:\05_python\python.exe" -m pip install pywin32
+& "C:\Python\python\python3.10.4\python.exe" -m pip install pywin32
 ```
 
 说明：
@@ -143,7 +143,7 @@ $env:MPLCONFIGDIR = "$env:TEMP\mpl_cache_p2_report"
 trucksim:
   run_name: "ORAC-BLFISMC1017 #phase2"
   com_progids: ["TruckSim.Application", "TruckSim2019.Application", "TS.Application"]
-  simfile_path: "D:/04_trucksim/TruckSim2019.0_Data/simfile.sim"
+  simfile_path: "C:/Trucksim2019/TruckSim2019.0_Data/simfile.sim"
   allow_par_file_patch: true
   road_base_mu: 0.85
 ```
@@ -244,9 +244,9 @@ max_steer_deg = 20
 不需要 MATLAB/TruckSim，用于确认 Python 依赖和控制器逻辑：
 
 ```powershell
-cd "D:\动力学仿真环境阶段二\01_trucksim_simulink_python\05_python_controller"
-& "D:\05_python\python.exe" tests\test_controller.py
-& "D:\05_python\python.exe" tests\test_server.py
+cd "C:\Users\ccc\Desktop\动力学仿真环境阶段二\01_trucksim_simulink_python\05_python_controller"
+& "C:\Python\python\python3.10.4\python.exe" tests\test_controller.py
+& "C:\Python\python\python3.10.4\python.exe" tests\test_server.py
 ```
 
 预期：
@@ -266,7 +266,7 @@ cd "D:\动力学仿真环境阶段二\01_trucksim_simulink_python\05_python_cont
 运行：
 
 ```matlab
-cd('D:\动力学仿真环境阶段二\01_trucksim_simulink_python\01_一键启动脚本')
+cd('C:\Users\ccc\Desktop\动力学仿真环境阶段二\01_trucksim_simulink_python\01_一键启动脚本')
 run_case_python
 ```
 
@@ -291,7 +291,7 @@ run_case_python
 运行：
 
 ```matlab
-cd('D:\动力学仿真环境阶段二\01_trucksim_simulink_python\01_一键启动脚本')
+cd('C:\Users\ccc\Desktop\动力学仿真环境阶段二\01_trucksim_simulink_python\01_一键启动脚本')
 run_batch_python
 ```
 
@@ -434,27 +434,27 @@ run_batch_python
 1. Python 依赖验证：
 
 ```powershell
-& "D:\05_python\python.exe" -c "import yaml, numpy, matplotlib, docx; print('python deps ok')"
+& "C:\Python\python\python3.10.4\python.exe" -c "import yaml, numpy, matplotlib, docx; print('python deps ok')"
 ```
 
 2. 控制器离线验证：
 
 ```powershell
-cd "D:\动力学仿真环境阶段二\01_trucksim_simulink_python\05_python_controller"
-& "D:\05_python\python.exe" tests\test_controller.py
+cd "C:\Users\ccc\Desktop\动力学仿真环境阶段二\01_trucksim_simulink_python\05_python_controller"
+& "C:\Python\python\python3.10.4\python.exe" tests\test_controller.py
 ```
 
 3. TCP 服务离线验证：
 
 ```powershell
-cd "D:\动力学仿真环境阶段二\01_trucksim_simulink_python\05_python_controller"
-& "D:\05_python\python.exe" tests\test_server.py
+cd "C:\Users\ccc\Desktop\动力学仿真环境阶段二\01_trucksim_simulink_python\05_python_controller"
+& "C:\Python\python\python3.10.4\python.exe" tests\test_server.py
 ```
 
 4. MATLAB 单工况验证：
 
 ```matlab
-cd('D:\动力学仿真环境阶段二\01_trucksim_simulink_python\01_一键启动脚本')
+cd('C:\Users\ccc\Desktop\动力学仿真环境阶段二\01_trucksim_simulink_python\01_一键启动脚本')
 run_case_python
 ```
 
@@ -498,10 +498,9 @@ run_batch_python
 
 ## 13. 当前已知状态
 
-截至 2026-09-08：
+截至 2026-09-16：
 
-- 单工况联仿流程可运行。
-- 方法2 `.par` 直写已经验证可把 15 km/h 用例真正写入 TruckSim，报告中起始车速接近 15 km/h。
-- 批量联仿输出已整理为一个批次目录，只生成一份批量 Word 报告。
-- 批量报告命令行中文乱码已处理：Python 成功输出只保留 `BATCH_SUMMARY_OK`，中文路径由 MATLAB 打印。
-- `road_grade` 的 TruckSim 控件映射仍需目标机确认后再启用。
+- 单工况联仿、严格 TruckSim 配置、TCP 握手和单/批量报告链路均可启动；`road_grade` 的控件映射仍需目标机确认后再启用。
+- 第032次（40 km/h、20 s 阶跃）日志包含 `CONFIG_READY`、`HANDSHAKE_OK`、`SERVER_STOPPED`，Python 时间轴为 0 至 20 s。
+- 但第032次的 `trucksim_io.csv` 仅记录到 2 s，尽管 `case_info.csv` 显示 `raw_out_tout_end_s=20`。这是导出时间向量和状态信号行数不一致后被截断的未闭环问题；该历史报告不能当作时间轴已修复的证据。
+- 下一次真实单工况必须同时检查 `trucksim_io.csv` 与 `python_signals.csv` 的 `sim_time_s` 末值是否等于 TXT 的 `stop_time_s`；未一致前不得批量验收或修改历史 CSV。

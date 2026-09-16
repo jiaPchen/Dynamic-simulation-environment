@@ -10,7 +10,10 @@
 %        请先确认后再运行。
 
 mdlName = 'new_three_axle_vehicle_2dof_3dof_Trucksim';
-mdlPath = 'D:\动力学仿真环境\00_simulink\new_three_axle_vehicle_2dof_3dof_Trucksim.slx';
+scriptDir = fileparts(mfilename('fullpath'));
+projectRoot = fileparts(scriptDir);
+mdlPath = fullfile(projectRoot, '00_simulink', ...
+    'new_three_axle_vehicle_2dof_3dof_Trucksim.slx');
 
 if ~bdIsLoaded(mdlName)
     load_system(mdlPath);
