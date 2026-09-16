@@ -22,7 +22,7 @@ controller:
 trucksim:
   run_name: "ORAC-BLFISMC1017 #phase2"   # 固定联仿 Run 名称（COM 配置用，需按目标机确认）
   com_progids: ["TruckSim.Application", "TruckSim2019.Application", "TS.Application"]  # 可尝试的 COM 程序标识
-  simfile_path: "D:/04_trucksim/TruckSim2019.0_Data/simfile.sim"  # COM 不可用时，按该 simfile 定位并修改 Run_all.par
+  simfile_path: "C:/Trucksim2019/TruckSim2019.0_Data/simfile.sim"  # COM 不可用时，按该 simfile 定位并修改 Run_all.par
   allow_par_file_patch: true              # 方法2：直接修改 Simulink S-Function 实际读取的 Run_all.par
   road_base_mu: 0.85                     # 当前道路数据集基准附着系数（MY_FRICTION 为倍率）
   # TXT 字段到 TruckSim COM 关键字的集中映射。若目标机控件名不同，只改这里。

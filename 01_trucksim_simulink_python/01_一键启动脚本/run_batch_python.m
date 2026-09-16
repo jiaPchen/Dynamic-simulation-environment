@@ -3,11 +3,11 @@
 clear; clc;
 clear run_single_python_case parse_case export_case_csv;
 
-phase2Root = 'D:\动力学仿真环境阶段二\01_trucksim_simulink_python';
+phase2Root = 'C:\Users\ccc\Desktop\动力学仿真环境阶段二\01_trucksim_simulink_python';
 caseDir = fullfile(phase2Root, '02_测试用例');
 controllerRoot = fullfile(phase2Root, '05_python_controller');
 reportRoot = fullfile(phase2Root, '04_测试报告');
-pythonExe = 'D:\05_python\python.exe';
+pythonExe = 'C:\Python\python\python3.10.4\python.exe';
 batchNo = ['批量仿真_' datestr(now, 'yyyy年mm月dd日_HH时MM分SS秒')];
 batchRoot = fullfile(reportRoot, batchNo);
 caseDataRoot = fullfile(batchRoot, 'cases');

@@ -13,7 +13,7 @@ function [runNo, ioDir] = run_single_python_case(caseFile, opt)
 %% ---------- 0. 默认配置 ----------
 if nargin < 2, opt = struct(); end
 
-phase2Root = 'D:\动力学仿真环境阶段二\01_trucksim_simulink_python';
+phase2Root = 'C:\Users\ccc\Desktop\动力学仿真环境阶段二\01_trucksim_simulink_python';
 mdlName  = getopt(opt, 'mdlName',  'three_axle_vehicle_2dof_3dof_Trucksim_python');
 mdlPath  = getopt(opt, 'mdlPath',  fullfile(phase2Root, '00_simulink', [mdlName '.slx']));
 dataRoot = getopt(opt, 'dataRoot', fullfile(phase2Root, '03_数据存储'));
@@ -21,14 +21,14 @@ userName = getopt(opt, 'userName', 'Python联仿');
 reportRoot  = getopt(opt, 'reportRoot',  fullfile(phase2Root, '04_测试报告'));
 caseDir     = getopt(opt, 'caseDir',     fullfile(phase2Root, '02_测试用例'));
 controllerRoot = getopt(opt, 'controllerRoot', fullfile(phase2Root, '05_python_controller'));
-pythonExe = getopt(opt, 'pythonExe', 'D:\05_python\python.exe');
+pythonExe = getopt(opt, 'pythonExe', 'C:\Python\python\python3.10.4\python.exe');
 port      = getopt(opt, 'port', 50007);
 useTrucksimCom = getopt(opt, 'useTrucksimCom', true);
 generateReport = getopt(opt, 'generateReport', true);   % 是否生成单工况报告（批量时置 false）
 
-trucksimSolverDir = 'D:\04_trucksim\TruckSim2019.0_Prog\Programs\solvers';
+trucksimSolverDir = 'C:\Trucksim2019\TruckSim2019.0_Prog\Programs\solvers';
 trucksimMlDir     = fullfile(trucksimSolverDir, 'Matlab84+');
-trucksimSimFile   = 'D:\04_trucksim\TruckSim2019.0_Data\simfile.sim';
+trucksimSimFile   = 'C:\Trucksim2019\TruckSim2019.0_Data\simfile.sim';
 addpath(trucksimMlDir, trucksimSolverDir, '-begin');
 
 scriptDir = fileparts(mfilename('fullpath'));

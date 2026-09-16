@@ -1,0 +1,112 @@
+# 阶段一换机配置与 AI 交接说明
+
+## 用途和边界
+
+本文件对应 `trucksim_simulink`，即阶段一的 TruckSim + Simulink 一键仿真环境。把本文件和该文件夹一并提供给 AI，可用于在另一台 Windows 电脑上检查和适配环境。
+
+本文件描述项目背景和配置规则，不替代用户在当前对话中的授权。AI 在修改脚本、Simulink 模型或 TruckSim 数据前，应先说明拟修改的文件和原因；不得删除历史 `03_数据存储`、`04_测试报告`，也不得覆盖原始模型或 TruckSim 数据文件。
+
+## 本阶段实际做什么
+
+入口脚本根据一个 TXT 测试用例生成第一轴转向输入；Simulink 将其传给 TruckSim S-Function；脚本导出 TruckSim 的车速、质心侧偏角、横摆角速度和位置等信号为 CSV；Python 再生成曲线和 Word 报告。
+
+当前模型只对第一轴施加脚本生成的转角，第二、第三轴转角固定为 0。它不是阶段二的 Python TCP 闭环控制项目。
+
+## 目录和关键文件
+
+```text
+trucksim_simulink/
+  00_simulink/
+    new_three_axle_vehicle_2dof_3dof_Trucksim.slx  # 联仿模型
+    three_parameter1.m                              # 车辆参数脚本
+  01_一键启动脚本/
+    run_case_new.m                                  # 唯一的日常运行入口
+    parse_case.m                                    # TXT 解析
+    export_case_csv.m                               # CSV 导出
+    make_test_report_new.py                         # 曲线和 Word 报告
+    repair_model_new.m                              # 缺失标准接线时的修复工具
+    trucksim_config.m                               # COM 配置占位，当前不可启用
+  02_测试用例/                                      # 实际执行的 TXT 工况
+  03_数据存储/                                      # 每次仿真的 CSV
+  04_测试报告/                                      # PNG、Word 和 manifest
+```
+
+## 目标电脑信息模板
+
+换电脑时，请把以下内容补全后连同本文件发给 AI。未知项应写“未知”，不要猜测。
+
+```text
+阶段一项目根目录：
+MATLAB 版本和安装情况：
+MATLAB 当前工作目录：
+Python 解释器完整路径（python.exe）：
+Python 版本：
+TruckSim 版本：
+TruckSim 程序目录：
+TruckSim 数据目录：
+实际用于联仿的 simfile.sim 完整路径：
+TruckSim solver 目录（包含 Matlab84+ 子目录）的完整路径：
+TruckSim 中已打开/拟使用的 Run 名称：
+是否允许 AI 修改项目内脚本：是/否
+是否允许 AI 修改 TruckSim 数据目录中的 .par 或其他数据集：是/否
+```
+
+本项目历史验证环境是 MATLAB R2021a、TruckSim 2019.0、Python。Python 报告程序需要 `numpy`、`matplotlib`、`python-docx`。阶段一的 `trucksim_config.m` 尚未完成映射，`pywin32` 和 TruckSim COM 不是阶段一的运行前提。
+
+## AI 的换机处理顺序
+
+1. 只读检查项目文件是否完整，确认模型、入口脚本、用例和报告脚本存在。
+2. 检查目标机给出的 Python、`simfile.sim`、solver 目录是否真实存在，并确认 solver 目录有 `Matlab84+` 子目录。
+3. 在修改前列出旧路径、新路径和将修改的文件；只修改下方列出的源脚本，不修改历史 CSV、报告或 manifest 中的旧路径。
+4. 确认 Simulink 模型的名称仍为 `new_three_axle_vehicle_2dof_3dof_Trucksim`，且存在 `Steering Input` 和 `TruckSim S-Function2` 两个块。模型结构不一致时先停止并报告，不要凭名称猜测连线。
+5. 先验证 Python 报告依赖，再在 MATLAB 中做一个单工况真实联仿。确认 CSV 与报告均生成后，才允许批量或模型修改工作。
+
+## 必须改为本机路径的位置
+
+以下旧路径不能直接沿用。它们当前集中在两个源文件中。
+
+| 文件 | 必须检查/修改的变量 | 说明 |
+|---|---|---|
+| `01_一键启动脚本/run_case_new.m` | `mdlPath` | 本项目 `00_simulink` 下的 `.slx` 完整路径 |
+| 同上 | `caseFile` | 默认运行的 TXT 用例；可保留为项目内示例 |
+| 同上 | `dataRoot` | 项目内 `03_数据存储` |
+| 同上 | `pythonExe` | 目标机的 `python.exe` |
+| 同上 | `trucksimSolverDir` | 目标机 TruckSim solver 根目录 |
+| 同上 | `trucksimSimFile` | **Simulink S-Function 实际使用的** `simfile.sim` |
+| `01_一键启动脚本/make_test_report_new.py` | `ROOT` | 阶段一项目根目录；该值用于脚本独立运行时的默认数据和报告目录 |
+
+不要把 `trucksimSimFile` 填成任意 TruckSim 数据目录下的同名文件。必须是当前模型 S-Function 实际读取的文件；`run_case_new.m` 会把它写入 S-Function 的 `SIMFILE` 参数。
+
+`trucksim_config.m` 是未实现的框架。除非维护者先在该电脑上完成 TXT 字段到 TruckSim 控件的验证和回读校验，否则必须保持 `run_case_new.m` 中的 `useTrucksimCom = false`。
+
+## 首次运行与验收
+
+1. 在 TruckSim 中打开已确认的 Run；其车辆、道路、初始速度和其他平台工况应先由使用者确认。
+2. 在 MATLAB 中打开 `00_simulink/new_three_axle_vehicle_2dof_3dof_Trucksim.slx`，但不要先开始仿真。
+3. 在 MATLAB 将当前目录切到 `01_一键启动脚本`，确认 `run_case_new.m` 的 `caseFile` 指向一个项目内 TXT 用例。
+4. 运行 `run_case_new`。
+5. 检查最新 `03_数据存储/<用户目录>/<运行编号>/` 中有 `*_trucksim_io.csv` 和 `*_case_info.csv`，并检查 `04_测试报告/<运行编号>/` 中有 PNG、Word 报告和 `report_manifest.json`。
+
+阶段一的 TXT 内 `initial_speed_kmh` 目前不会自动写入 TruckSim；实际车速由 `simfile.sim` 和 TruckSim Run 决定。因此测试报告若提示“实际起始车速与用例不一致”，应优先在 TruckSim 中确认工况，而不是改 Python 或强行启用 COM。
+
+## 常见故障与处理原则
+
+| 现象 | 优先检查 |
+|---|---|
+| 找不到 `simfile.sim` 或 S-Function 无法启动 | `trucksimSimFile`、`trucksimSolverDir`、TruckSim 版本及 `Matlab84+` 是否匹配 MATLAB |
+| 模型提示找不到 `Steering Input` | 先备份 `.slx`，再由维护者确认后运行 `repair_model_new.m`；不要手工猜测端口连线 |
+| 报告未生成 | `pythonExe`、三个 Python 依赖、MATLAB 命令行中的 Python 错误和临时 `make_test_report.log` |
+| 用例是 20/30/40 km/h，但车辆初速不一致 | 阶段一预期限制：检查 TruckSim Run/simfile；保持 `useTrucksimCom = false` |
+| 模型被 MATLAB 占用或保存提示异常 | 关闭模型后再由单人修改；不要在文件管理器中覆盖已打开的 `.slx` |
+
+## 可直接发给 AI 的请求
+
+```text
+请按“阶段一换机配置与 AI 交接说明.md”适配此项目。
+我的电脑信息如下：
+[粘贴已填写的目标电脑信息模板]
+
+先只读检查并给出旧路径→新路径的修改清单；确认后再修改项目内源脚本。
+不得修改历史结果、不得启用未实现的 trucksim_config.m、不得修改 TruckSim 数据目录。
+完成后请给出 Python 依赖检查和 MATLAB 单工况验证步骤。
+```

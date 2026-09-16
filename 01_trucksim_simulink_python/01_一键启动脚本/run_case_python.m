@@ -4,7 +4,7 @@
 clear; clc;
 clear run_single_python_case parse_case export_case_csv;
 
-caseFile = 'D:\动力学仿真环境阶段二\01_trucksim_simulink_python\02_测试用例\step_steer_python.txt';%step_steer_python  sine_steer_python
+caseFile = 'C:\Users\ccc\Desktop\动力学仿真环境阶段二\01_trucksim_simulink_python\02_测试用例\step_steer_python.txt';%step_steer_python  sine_steer_python
 
 opt = struct();
 opt.useTrucksimCom = true;  % 严格按 TXT 配置 TruckSim；COM 不可用时自动改 simfile 指向的 Run_all.par
