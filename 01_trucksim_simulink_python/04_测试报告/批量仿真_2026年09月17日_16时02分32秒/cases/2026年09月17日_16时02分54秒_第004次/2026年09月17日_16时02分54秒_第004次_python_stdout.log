@@ -1,0 +1,35 @@
+[警告] 文件名(p2_case_current)与 case_name(step_steer_python)不一致
+CASE_OK step_steer_python | v0=40.0 km/h | steer=step | t_end=20.0 s
+[trucksim_com] ProgID TruckSim.Application 连接失败: (-2147221005, '无效的类字符串', None, None)
+[trucksim_com] ProgID TruckSim2019.Application 连接失败: (-2147221005, '无效的类字符串', None, None)
+[trucksim_com] ProgID TS.Application 连接失败: (-2147221005, '无效的类字符串', None, None)
+[trucksim_com] 未找到可用 COM ProgID，改用 simfile/Run_all.par 配置
+[trucksim_par] 已修改 5 个 par 文件
+[trucksim_par] 文件: C:\Trucksim2019\TruckSim2019.0_Data\Results\Run_427db28b-f832-4cf6-ab8c-592b102dd823\Run_all.par
+[trucksim_par] 备份: C:\Trucksim2019\TruckSim2019.0_Data\Results\Run_427db28b-f832-4cf6-ab8c-592b102dd823\Run_all.par.phase2_backup
+[trucksim_par]   TSTOP 更新 1 处
+[trucksim_par]   SPEED_TARGET_CONSTANT 更新 2 处
+[trucksim_par]   MU_ROAD_CONSTANT 更新 1 处
+[trucksim_par]   MY_FRICTION 更新 6 处
+[trucksim_par] 文件: C:\Trucksim2019\TruckSim2019.0_Data\Procedures\Proc_b689da4c-8cb3-4455-9183-30a9c5740c78.par
+[trucksim_par] 备份: C:\Trucksim2019\TruckSim2019.0_Data\Procedures\Proc_b689da4c-8cb3-4455-9183-30a9c5740c78.par.phase2_backup
+[trucksim_par]   TSTOP 更新 2 处
+[trucksim_par]   SPEED 更新 1 处
+[trucksim_par]   SPEED_TARGET_CONSTANT 更新 1 处
+[trucksim_par] 文件: C:\Trucksim2019\TruckSim2019.0_Data\Events\Events_12a1e9bf-53e2-4a2a-a0b4-e99e811e6e59.par
+[trucksim_par] 备份: C:\Trucksim2019\TruckSim2019.0_Data\Events\Events_12a1e9bf-53e2-4a2a-a0b4-e99e811e6e59.par.phase2_backup
+[trucksim_par]   SPEED 更新 1 处
+[trucksim_par]   SPEED_TARGET_CONSTANT 更新 1 处
+[trucksim_par] 文件: C:\Trucksim2019\TruckSim2019.0_Data\Events\Events_bf95a3b8-f2d5-400f-ba4f-92ed765efff5.par
+[trucksim_par] 备份: C:\Trucksim2019\TruckSim2019.0_Data\Events\Events_bf95a3b8-f2d5-400f-ba4f-92ed765efff5.par.phase2_backup
+[trucksim_par]   SPEED 更新 1 处
+[trucksim_par]   SPEED_TARGET_CONSTANT 更新 1 处
+[trucksim_par] 文件: C:\Trucksim2019\TruckSim2019.0_Data\Roads\Friction\RdMu_b9002147-95c5-413a-83ea-2e94873c1c62.par
+[trucksim_par] 备份: C:\Trucksim2019\TruckSim2019.0_Data\Roads\Friction\RdMu_b9002147-95c5-413a-83ea-2e94873c1c62.par.phase2_backup
+[trucksim_par]   MU_ROAD_CONSTANT 更新 1 处
+CONFIG_READY
+LISTENING 127.0.0.1:50007
+CLIENT_CONNECTED ('127.0.0.1', 52050)
+HANDSHAKE_OK
+STOP_OK
+SERVER_STOPPED

@@ -41,4 +41,4 @@ cd('C:\Users\ccc\Desktop\动力学仿真环境阶段二\01_trucksim_simulink_pyt
 run_local_preflight
 ```
 
-确认 TruckSim Run、备份和写入许可后，再执行 `run_case_python`。单工况完整通过后才可执行 `run_batch_python`。项目会修改当前 TruckSim `.par` 数据，因此不得与另一套使用同一 Run 或同一 `simfile.sim` 的仿真实例并行运行。
+确认 TruckSim Run、备份和写入许可后，再执行 `run_case_python`。也可执行多工况仿真 `run_batch_python`。
