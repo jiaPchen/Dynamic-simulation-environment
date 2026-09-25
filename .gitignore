@@ -16,6 +16,21 @@ codegen/
 *.temp
 ~$*
 
+# Generated simulation outputs are ignored by default. Curated current
+# acceptance runs can be added explicitly with git add -f.
+/00trucksim_simulink/03_数据存储/
+/00trucksim_simulink/04_测试报告/
+/01_trucksim_simulink_python/03_数据存储/
+/01_trucksim_simulink_python/04_测试报告/
+
+# Machine-specific TruckSim entry pointers; keep runtime README files.
+/00trucksim_simulink/runtime/*.path
+/00trucksim_simulink/runtime/*.origin.txt
+/00trucksim_simulink/runtime/*.sim
+/01_trucksim_simulink_python/runtime/*.path
+/01_trucksim_simulink_python/runtime/*.origin.txt
+/01_trucksim_simulink_python/runtime/*.sim
+
 # OS metadata
 Thumbs.db
 .DS_Store

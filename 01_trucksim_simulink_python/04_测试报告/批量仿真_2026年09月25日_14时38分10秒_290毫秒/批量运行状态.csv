@@ -1,0 +1,5 @@
+case_file,case_name,status,run_number,run_dir,error_identifier,error_message,timestamp_local_iso8601
+sine_steer_python_15kmh.txt,sine_steer_python_15kmh,COMPLETED,2026年09月25日_14时38分14秒_第001次,C:\Users\ccc\Desktop\动力学仿真环境阶段二\01_trucksim_simulink_python\04_测试报告\批量仿真_2026年09月25日_14时38分10秒_290毫秒\cases\2026年09月25日_14时38分14秒_第001次,,,2026-09-25T14:38:15+08:00
+sine_steer_python_40kmh.txt,sine_steer_python_40kmh,COMPLETED,2026年09月25日_14时38分17秒_第002次,C:\Users\ccc\Desktop\动力学仿真环境阶段二\01_trucksim_simulink_python\04_测试报告\批量仿真_2026年09月25日_14时38分10秒_290毫秒\cases\2026年09月25日_14时38分17秒_第002次,,,2026-09-25T14:38:17+08:00
+step_steer_python_20kmh.txt,step_steer_python_20kmh,COMPLETED,2026年09月25日_14时38分21秒_第003次,C:\Users\ccc\Desktop\动力学仿真环境阶段二\01_trucksim_simulink_python\04_测试报告\批量仿真_2026年09月25日_14时38分10秒_290毫秒\cases\2026年09月25日_14时38分21秒_第003次,,,2026-09-25T14:38:21+08:00
+step_steer_python_40kmh.txt,step_steer_python_40kmh,COMPLETED,2026年09月25日_14时38分24秒_第004次,C:\Users\ccc\Desktop\动力学仿真环境阶段二\01_trucksim_simulink_python\04_测试报告\批量仿真_2026年09月25日_14时38分10秒_290毫秒\cases\2026年09月25日_14时38分24秒_第004次,,,2026-09-25T14:38:24+08:00

@@ -1,0 +1,54 @@
+key,value
+run_number,2026年09月25日_14时38分24秒_第004次
+run_timestamp_local_iso8601,2026-09-25T14:38:24+08:00
+run_timestamp_utc_iso8601,2026-09-25T06:38:24Z
+run_status,COMPLETED
+acceptance_status,NOT_EVALUATED
+model_name,three_axle_vehicle_2dof_3dof_Trucksim_python
+schema_version,3
+case_name,step_steer_python_40kmh
+source_case_id,MV-201-40
+trucksim_scenario,straight_road
+description,40 km/h 直线行驶 1 s 后第一轴施加 3 度阶跃转角，Python 控制器分配二/三轴转角
+stop_time_s,20
+initial_speed_kmh,40
+target_speed_kmh,40
+steer_input_type,step
+steer_amplitude_deg,3
+steer_frequency_hz,0
+steer_start_time_s,1
+road_friction,0.85
+road_grade,0.0
+controller_mode,zero_sideslip
+control_dt_s,0.01
+kp_beta,0.6
+ki_beta,0.5
+max_steer_deg,20
+export_time_source,python_tcp_sim_time_s
+raw_out_tout_end_s,20
+tcp_sim_time_end_s,20
+tcp_integrity_status,LISTENING|HANDSHAKE_OK|STOP_OK|SERVER_STOPPED
+trucksim_config_status,CONFIG_READY
+trucksim_config_method,PAR_FILE_FALLBACK
+case_file_path,C:\Users\ccc\Desktop\动力学仿真环境阶段二\01_trucksim_simulink_python\02_测试用例\step_steer_python_40kmh.txt
+model_file_path,C:\Users\ccc\Desktop\动力学仿真环境阶段二\01_trucksim_simulink_python\00_simulink\three_axle_vehicle_2dof_3dof_Trucksim_python.slx
+simfile_path,C:\Trucksim2019\TruckSim2019.0_Data\simfile_phase2.sim
+controller_entry_path,C:\Users\ccc\Desktop\动力学仿真环境阶段二\01_trucksim_simulink_python\05_python_controller\tcp\tcp_server.py
+controller_source_path,C:\Users\ccc\Desktop\动力学仿真环境阶段二\01_trucksim_simulink_python\05_python_controller\controller\zero_sideslip_controller.py
+interface_version,p2-tcp-v1
+python_executable,C:\Python\python\python3.10.4\python.exe
+trucksim_version,TruckSim 2019.0
+matlab_release,2024b
+matlab_version,24.2.0.2712019 (R2024b)
+simulink_version,24.2
+python_version,Python 3.10.4
+platform,PCWIN64
+git_commit,b636cc4e03879c1ae70b2f8667e86121a5616ea5
+git_tracked_worktree_dirty,true
+case_file_sha256,8158694eef388fe57b24cfdf706de70fa4a9d5f56a67813860b597d0ad8c6ff3
+model_file_sha256,6370d26c5f3f30f360790534bb516b9c7804d0afe06d4fd50bb4a322efd23773
+simfile_sha256,379d771a0eaa22dad721cef921895838bb29be929ffd369d3f166439f1ae9c17
+controller_entry_sha256,9293947800309ae28625cb2a91b62ad878a7c87f2c8c58c590cfee13a146cb32
+controller_source_sha256,626948940542742a4d6c94ea2e4b281e0715b482ad9c8da31c8237a9baeeab6f
+trucksim_run_id,Run_427db28b-f832-4cf6-ab8c-592b102dd823
+trucksim_external_step_s,0.00100000

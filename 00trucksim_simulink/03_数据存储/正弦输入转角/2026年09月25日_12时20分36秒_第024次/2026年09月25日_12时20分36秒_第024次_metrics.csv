@@ -1,0 +1,13 @@
+metric,value,unit
+duration,12,s
+sample_count,1201,count
+sample_period_median,0.00999999999999979,s
+v_start,40,km/h
+v_end,40.1233887690542,km/h
+v_min,38.8848444243859,km/h
+v_max,40.4682855224083,km/h
+max_abs_beta,0.205929799133442,deg
+max_abs_yaw_rate,9.95382375406244,deg/s
+max_abs_lateral_position,14.7118494684533,m
+max_abs_steer,2,deg
+acceptance_status,NOT_EVALUATED,

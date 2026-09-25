@@ -1,0 +1,44 @@
+key,value
+run_number,2026年09月25日_12时20分36秒_第024次
+run_timestamp_local_iso8601,2026-09-25T12:20:36+08:00
+run_timestamp_utc_iso8601,2026-09-25T04:20:36Z
+run_status,COMPLETED
+acceptance_status,NOT_EVALUATED
+model_name,new_three_axle_vehicle_2dof_3dof_Trucksim
+schema_version,2
+case_name,sine_steer_40kmh
+source_case_id,MV-002
+trucksim_scenario,straight_road
+description,40 km/h 正弦转向，幅值 2 度，频率 0.2 Hz，1 s 后开始
+stop_time_s,12
+initial_speed_kmh,40
+target_speed_kmh,40
+steer_input_type,sine
+steer_amplitude_deg,2
+steer_frequency_hz,0.2
+steer_start_time_s,1
+road_friction,0.85
+road_grade,0.0
+run_status,COMPLETED
+trucksim_config_status,CONFIG_READY
+trucksim_config_method,PAR_FILE_FALLBACK
+case_file_path,C:\Users\ccc\Desktop\动力学仿真环境阶段二\00trucksim_simulink\02_测试用例\sine_steer_40kmh.txt
+model_file_path,C:\Users\ccc\Desktop\动力学仿真环境阶段二\00trucksim_simulink\00_simulink\new_three_axle_vehicle_2dof_3dof_Trucksim.slx
+simfile_path,C:\Trucksim2019\TruckSim2019.0_Data\simfile_phase1.sim
+export_sample_period_s,0.01
+python_executable,C:\Python\python\python3.10.4\python.exe
+trucksim_version,TruckSim 2019.0
+raw_sample_count,1201
+export_sample_count,1201
+matlab_release,2024b
+matlab_version,24.2.0.2712019 (R2024b)
+simulink_version,24.2
+python_version,Python 3.10.4
+platform,PCWIN64
+git_commit,b636cc4e03879c1ae70b2f8667e86121a5616ea5
+git_tracked_worktree_dirty,true
+case_file_sha256,e3685e15d55dae45a62e6206421937f360d253cc469f8344a338125031f4ab53
+model_file_sha256,5c9bcfc3e9147adabdaa21e7130e9678fcb150cafbb0f4d74bcd5dba32606abe
+simfile_sha256,8df414dda214cfa12a7eacc4d8a4c61f814515f619af388fa08f1730435cd821
+trucksim_run_id,Run_94d053ad-d395-4c0b-946c-f50a5bee4568
+trucksim_external_step_s,0.00100000

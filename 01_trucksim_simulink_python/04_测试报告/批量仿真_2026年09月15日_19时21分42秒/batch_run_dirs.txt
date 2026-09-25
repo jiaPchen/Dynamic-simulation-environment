@@ -1,4 +1,0 @@
-C:\Users\ccc\Desktop\动力学仿真环境阶段二\01_trucksim_simulink_python\04_测试报告\批量仿真_2026年09月15日_19时21分42秒\cases\2026年09月15日_19时21分47秒_第001次
-C:\Users\ccc\Desktop\动力学仿真环境阶段二\01_trucksim_simulink_python\04_测试报告\批量仿真_2026年09月15日_19时21分42秒\cases\2026年09月15日_19时21分49秒_第002次
-C:\Users\ccc\Desktop\动力学仿真环境阶段二\01_trucksim_simulink_python\04_测试报告\批量仿真_2026年09月15日_19时21分42秒\cases\2026年09月15日_19时21分52秒_第003次
-C:\Users\ccc\Desktop\动力学仿真环境阶段二\01_trucksim_simulink_python\04_测试报告\批量仿真_2026年09月15日_19时21分42秒\cases\2026年09月15日_19时21分56秒_第004次

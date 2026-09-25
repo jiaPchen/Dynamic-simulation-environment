@@ -1,0 +1,5 @@
+﻿run_number,case_name,steer_input_type,duration_s,sample_count,sample_period_median_s,v_start_kmh,v_end_kmh,v_max_kmh,v_end_error_kmh,v_end_error_percent,max_abs_beta_deg,max_abs_yaw_degps,max_abs_delta1_deg,max_abs_delta2_deg,max_abs_delta3_deg,execution_status,acceptance_status
+2026年09月25日_14时38分14秒_第001次,sine_steer_python_15kmh,sine,30,3001,0.01,15,15.08,15.09,0.08375,0.5583,0.05992,6.224,2,0.04842,1.027,PASS,NOT_EVALUATED
+2026年09月25日_14时38分17秒_第002次,sine_steer_python_40kmh,sine,12,1201,0.01,40,40.13,40.47,0.1265,0.3162,0.1519,8.143,2,0.04515,0.355,PASS,NOT_EVALUATED
+2026年09月25日_14时38分21秒_第003次,step_steer_python_20kmh,step,20,2001,0.01,20,21.06,21.06,1.06,5.298,0.3907,13.02,3,0.07644,1.13,PASS,NOT_EVALUATED
+2026年09月25日_14时38分24秒_第004次,step_steer_python_40kmh,step,20,2001,0.01,40,40.01,40.5,0.01018,0.02546,0.5406,12.94,3,0.07089,0.5986,PASS,NOT_EVALUATED

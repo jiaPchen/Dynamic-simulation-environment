@@ -1,0 +1,16 @@
+metric,value,unit
+duration,30,s
+sample_count,3001,count
+sample_period_median,0.00999999999999979,s
+v_start,15,km/h
+v_end,15.083748,km/h
+v_max,15.09039,km/h
+v_end_error,0.0837479999999999,km/h
+v_end_error_percent,0.55832,%
+max_abs_beta,0.059921,deg
+max_abs_yaw_rate,6.224375,deg/s
+max_abs_delta1,2,deg
+max_abs_delta2,0.048421,deg
+max_abs_delta3,1.027092,deg
+execution_status,PASS,
+acceptance_status,NOT_EVALUATED,

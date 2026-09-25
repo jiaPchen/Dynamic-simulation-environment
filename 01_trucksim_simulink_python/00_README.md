@@ -36,7 +36,7 @@ TCP:               127.0.0.1:50007
 
 ## 当前电脑的运行记录
 
-截至 2026-09-25，`02_测试用例/` 有 2 个正弦、2 个阶跃常规用例。`run_case_python.m` 默认选用其中的 `step_steer_python_40kmh.txt`；`run_batch_python` 按文件名顺序运行目录内全部 4 个 TXT。2026-09-25 12:46 的批量报告中，4 个工况均为 `COMPLETED`、`execution_status=PASS`，采样周期为 0.01 s；对应日志均有 `CONFIG_READY`、`HANDSHAKE_OK`、`STOP_OK`、`SERVER_STOPPED`。这些是当前电脑当次运行的证据，不保证复制到新电脑后无需重新预检和试跑。
+截至 2026-09-25，`02_测试用例/` 有 2 个正弦、2 个阶跃常规用例。`run_case_python.m` 默认选用其中的 `step_steer_python_40kmh.txt`；`run_batch_python` 按文件名顺序运行目录内全部 4 个 TXT。当前保留的 2026-09-25 14:38 批量报告中，4 个工况均为 `COMPLETED`、`execution_status=PASS`，采样周期为 0.01 s；对应日志均有 `CONFIG_READY`、`HANDSHAKE_OK`、`STOP_OK`、`SERVER_STOPPED`。同一时间的第 042 次单工况也有 CSV、曲线和 Word 报告。这些是当前电脑当次运行的证据，不保证复制到新电脑后无需重新预检和试跑。
 
 非零坡度、起伏路面和 TruckSim COM 实测不是《项目推进(1).docx》阶段二的必验项；相关配置或离线测试不能代替真实车辆响应验证。需要扩展验证时参阅运行指南，勿把扩展用例直接放进常规批量目录。
 
