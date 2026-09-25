@@ -17,7 +17,8 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.shared import Cm, Inches, Pt, RGBColor
 
 from make_report_python import (FIG_SPECS, add_heading, add_run, build_table,
-                                load_run, metrics, plot_figs, write_metrics_csv)
+                                format_table, load_run, metrics, plot_figs,
+                                write_metrics_csv)
 
 
 def _fmt(value):
@@ -30,7 +31,7 @@ def _fmt(value):
 def _add_title(doc, title, subtitle):
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    add_run(p, title, size=Pt(20), bold=True, color=RGBColor(0x1F, 0x3F, 0x76))
+    add_run(p, title, size=Pt(20), bold=True, color=RGBColor(0x00, 0x00, 0x00))
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
     add_run(p, subtitle, size=Pt(10.5), color=RGBColor(0x5B, 0x65, 0x73))
@@ -38,10 +39,10 @@ def _add_title(doc, title, subtitle):
 
 def _add_summary_table(doc, results):
     add_heading(doc, "1. 批量概况")
-    tbl = doc.add_table(rows=1 + len(results), cols=10)
+    tbl = doc.add_table(rows=1 + len(results), cols=7)
     tbl.style = "Table Grid"
-    header = ["序号", "运行编号", "工况名称", "输入", "初始车速", "结束车速",
-              "最大|β|", "最大横摆", "最大d1", "最大d3"]
+    header = ["序号", "工况名称", "输入", "目标车速", "结束车速",
+              "最大|β|", "运行完整性"]
     for j, htxt in enumerate(header):
         cell = tbl.rows[0].cells[j]
         cell.paragraphs[0].text = ""
@@ -51,20 +52,18 @@ def _add_summary_table(doc, results):
         run_no, case, m, _fig_dir = item
         vals = [
             str(i),
-            run_no,
             case.get("case_name", ""),
             case.get("steer_input_type", ""),
-            _fmt(m["v_start_kmh"]) + " km/h",
+            _fmt(m["target_speed_kmh"]) + " km/h",
             _fmt(m["v_end_kmh"]) + " km/h",
             _fmt(m["max_abs_beta_deg"]) + " deg",
-            _fmt(m["max_abs_yaw_degps"]) + " deg/s",
-            _fmt(m["max_abs_delta1_deg"]) + " deg",
-            _fmt(m["max_abs_delta3_deg"]) + " deg",
+            m["execution_status"],
         ]
         for j, val in enumerate(vals):
             cell = tbl.rows[i].cells[j]
             cell.paragraphs[0].text = ""
             add_run(cell.paragraphs[0], val, size=Pt(8))
+    format_table(tbl)
 
 
 def _add_case_table(doc, case, m):
@@ -87,8 +86,11 @@ def _add_case_table(doc, case, m):
          "最大d1", _fmt(m["max_abs_delta1_deg"]) + " deg"),
         ("转向频率/开始", "%s Hz / %s s" % (case.get("steer_frequency_hz", "-"),
                                       case.get("steer_start_time_s", "-")),
-         "最大d3", _fmt(m["max_abs_delta3_deg"]) + " deg"),
-        ("路面附着系数", case.get("road_friction", "-"), "控制周期", case.get("control_dt_s", "0.01") + " s"),
+         "最大d2", _fmt(m["max_abs_delta2_deg"]) + " deg"),
+        ("路面附着系数", case.get("road_friction", "-"), "最大d3", _fmt(m["max_abs_delta3_deg"]) + " deg"),
+        ("控制周期", case.get("control_dt_s", "0.01") + " s", "结束车速偏差",
+         "%+.4g km/h (%+.3g%%)" % (m["v_end_error_kmh"], m["v_end_error_percent"])),
+        ("运行完整性", m["execution_status"], "控制性能验收", m["controller_acceptance_status"]),
     ]
     for left_k, left_v, right_k, right_v in rows:
         cells = tbl.add_row().cells
@@ -96,6 +98,7 @@ def _add_case_table(doc, case, m):
         for j, val in enumerate(vals):
             cells[j].paragraphs[0].text = ""
             add_run(cells[j].paragraphs[0], val, size=Pt(8.5), bold=(j in (0, 2)))
+    format_table(tbl)
 
 
 def _add_case_figures(doc, fig_dir):
@@ -116,14 +119,20 @@ def _write_summary_csv(out_dir, results):
     with open(summary_csv, "w", newline="", encoding="utf-8-sig") as f:
         w = csv.writer(f)
         w.writerow(["run_number", "case_name", "steer_input_type", "duration_s",
-                    "v_start_kmh", "v_end_kmh", "v_max_kmh", "max_abs_beta_deg",
-                    "max_abs_yaw_degps", "max_abs_delta1_deg", "max_abs_delta3_deg"])
+                    "sample_count", "sample_period_median_s", "v_start_kmh", "v_end_kmh",
+                    "v_max_kmh", "v_end_error_kmh", "v_end_error_percent",
+                    "max_abs_beta_deg", "max_abs_yaw_degps", "max_abs_delta1_deg",
+                    "max_abs_delta2_deg", "max_abs_delta3_deg", "execution_status",
+                    "acceptance_status"])
         for run_no, case, m, _fig_dir in results:
             w.writerow([run_no, case.get("case_name", ""), case.get("steer_input_type", ""),
-                        _fmt(m["duration_s"]), _fmt(m["v_start_kmh"]), _fmt(m["v_end_kmh"]),
-                        _fmt(m["v_max_kmh"]), _fmt(m["max_abs_beta_deg"]),
+                        _fmt(m["duration_s"]), m["sample_count"], _fmt(m["sample_period_median_s"]),
+                        _fmt(m["v_start_kmh"]), _fmt(m["v_end_kmh"]), _fmt(m["v_max_kmh"]),
+                        _fmt(m["v_end_error_kmh"]), _fmt(m["v_end_error_percent"]),
+                        _fmt(m["max_abs_beta_deg"]),
                         _fmt(m["max_abs_yaw_degps"]), _fmt(m["max_abs_delta1_deg"]),
-                        _fmt(m["max_abs_delta3_deg"])])
+                        _fmt(m["max_abs_delta2_deg"]), _fmt(m["max_abs_delta3_deg"]),
+                        m["execution_status"], m["controller_acceptance_status"]])
     return summary_csv
 
 
@@ -185,14 +194,30 @@ def main():
     sec.left_margin = sec.right_margin = Cm(1.8)
 
     _add_title(doc, "阶段二批量仿真测试报告",
-               "共 %d 个工况 | 输出目录：%s" % (len(results), out_dir))
+               "共 %d 个工况 | 批次 %s" % (len(results), os.path.basename(out_dir)))
     _add_summary_table(doc, results)
 
     add_heading(doc, "2. 分工况结果")
     for idx, (run_no, case, m, fig_dir) in enumerate(results, start=1):
+        doc.add_page_break()
         add_heading(doc, "2.%d %s（%s）" % (idx, case.get("case_name", ""), run_no))
         _add_case_table(doc, case, m)
         _add_case_figures(doc, fig_dir)
+
+    doc.add_page_break()
+    add_heading(doc, "3. 批量结论")
+    pass_count = sum(1 for _run_no, _case, m, _fig_dir in results
+                     if m["execution_status"] == "PASS")
+    fail_count = len(results) - pass_count
+    p = doc.add_paragraph()
+    add_run(p, "本批次共 %d 个工况，运行完整性 PASS %d 个、FAIL %d 个。"
+               "运行完整性仅评价工况是否完整执行、时间轴与必需信号是否有效、"
+               "TCP 生命周期是否完整以及 TruckSim 工况是否配置就绪。"
+               % (len(results), pass_count, fail_count))
+    p = doc.add_paragraph()
+    add_run(p, "当前项目尚未为该类控制效果规定统一判定阈值，"
+               "因此所有工况的控制性能验收状态均为 NOT_EVALUATED；"
+               "报告展示的车速偏差、质心侧偏角、横摆角速度和各轴转角仅作为客观指标。")
 
     summary_csv = _write_summary_csv(out_dir, results)
     docx_path = os.path.join(out_dir, "阶段二批量仿真测试报告.docx")

@@ -502,8 +502,9 @@ def build_docx(report_dir, run_number, params, signal_source, sections,
     conc = doc.add_paragraph()
     conc.paragraph_format.space_after = Pt(6)
     add_run(conc, conclusion_auto)
-    note_p = doc.add_paragraph()
-    add_run(note_p, "人工结论：%s" % conclusion_note, size=Pt(10.5), color=COLOR_NOTE)
+    if conclusion_note:
+        note_p = doc.add_paragraph()
+        add_run(note_p, "验收说明：%s" % conclusion_note, size=Pt(10.5), color=COLOR_NOTE)
 
     docx_path = os.path.join(report_dir, run_number + ".docx")
     try:
@@ -655,7 +656,7 @@ def main():
     ]
 
     conclusion_auto = (
-        "本次联合仿真已完成。实际仿真时长为 %.4g s（设定 %g s）；车辆初始/结束速度为 "
+        "本次联合仿真运行完整性检查已完成。实际仿真时长为 %.4g s（设定 %g s）；车辆初始/结束速度为 "
         "%.6g / %.6g km/h；车辆最小/最大速度为 %.6g / %.6g km/h；车辆累计行驶距离 "
         "%.4g m；最大横向位移 %.4g m；TruckSim 最大横摆角速度 %.4g deg/s，"
         "最大质心侧偏角 %.4g deg。"
@@ -674,11 +675,7 @@ def main():
             % (m["v_start_kmh"], init_v)
         )
     else:
-        conclusion_note = (
-            "本工况为模型验证用例（%s），TruckSim 响应符合预期，"
-            "可作为后续控制器联合仿真的基线。"
-            % case.get("source_case_id", "")
-        )
+        conclusion_note = ""
 
     manifest = build_manifest(run_number, params, signal_source, sections,
                               conclusion_auto, conclusion_note)

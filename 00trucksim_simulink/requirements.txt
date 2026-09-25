@@ -1,0 +1,4 @@
+# 当前电脑 Python 3.10.4 的已验证报告依赖；TruckSim COM 的 pywin32 为可选项。
+numpy==2.2.6
+matplotlib==3.10.9
+python-docx==1.2.0

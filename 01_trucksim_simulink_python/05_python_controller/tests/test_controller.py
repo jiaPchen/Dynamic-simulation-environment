@@ -83,7 +83,7 @@ def main():
     print("正弦 40km/h 闭环 max|beta|=%.4f deg" % b_sine)
     assert b_sine < 0.35
 
-    print("控制器离线验证全部通过 ✓")
+    print("控制器离线验证全部通过 [OK]")
 
 
 if __name__ == "__main__":

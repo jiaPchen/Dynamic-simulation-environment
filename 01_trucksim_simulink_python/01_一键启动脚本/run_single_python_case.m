@@ -13,13 +13,14 @@ function [runNo, ioDir] = run_single_python_case(caseFile, opt)
 %% ---------- 0. 默认配置 ----------
 if nargin < 2, opt = struct(); end
 
-phase2Root = 'C:\Users\ccc\Desktop\动力学仿真环境阶段二\01_trucksim_simulink_python';
+% 以本脚本所在目录自动定位阶段二根目录，复制到其他电脑后无需修改项目目录。
+scriptDir = fileparts(mfilename('fullpath'));
+phase2Root = fileparts(scriptDir);
 mdlName  = getopt(opt, 'mdlName',  'three_axle_vehicle_2dof_3dof_Trucksim_python');
 mdlPath  = getopt(opt, 'mdlPath',  fullfile(phase2Root, '00_simulink', [mdlName '.slx']));
 dataRoot = getopt(opt, 'dataRoot', fullfile(phase2Root, '03_数据存储'));
 userName = getopt(opt, 'userName', 'Python联仿');
 reportRoot  = getopt(opt, 'reportRoot',  fullfile(phase2Root, '04_测试报告'));
-caseDir     = getopt(opt, 'caseDir',     fullfile(phase2Root, '02_测试用例'));
 controllerRoot = getopt(opt, 'controllerRoot', fullfile(phase2Root, '05_python_controller'));
 pythonExe = getopt(opt, 'pythonExe', 'C:\Python\python\python3.10.4\python.exe');
 port      = getopt(opt, 'port', 50007);
@@ -28,10 +29,20 @@ generateReport = getopt(opt, 'generateReport', true);   % 是否生成单工况�
 
 trucksimSolverDir = 'C:\Trucksim2019\TruckSim2019.0_Prog\Programs\solvers';
 trucksimMlDir     = fullfile(trucksimSolverDir, 'Matlab84+');
-trucksimSimFile   = 'C:\Trucksim2019\TruckSim2019.0_Data\simfile.sim';
+% 阶段二专用simfile。首次使用或重新选择阶段二Run后，先运行
+% capture_phase2_simfile；项目内记录文件指向TruckSim数据目录中的专用副本。
+simfilePointer = fullfile(phase2Root, 'runtime', 'trucksim_phase2.path');
 addpath(trucksimMlDir, trucksimSolverDir, '-begin');
+if ~exist(simfilePointer, 'file')
+    error('run_single_python_case:NoPhaseSimfilePointer', ['阶段二专用simfile记录不存在: %s\n' ...
+        '请先在TruckSim选择阶段二Run并发送到Simulink，然后运行capture_phase2_simfile。'], ...
+        simfilePointer);
+end
+trucksimSimFile = strtrim(fileread(simfilePointer));
+if ~exist(trucksimSimFile, 'file')
+    error('run_single_python_case:NoPhaseSimfile', '阶段二专用simfile不存在: %s', trucksimSimFile);
+end
 
-scriptDir = fileparts(mfilename('fullpath'));
 addpath(scriptDir);                        % parse_case.m / export_case_csv.m
 addpath(fileparts(mdlPath));               % tcp_client_sfun.m 所在目录（模型目录）
 
@@ -58,26 +69,33 @@ if getSimulinkBlockHandle(tcpBlk) < 0
 end
 
 %% ---------- 3. 启动 Python TCP 服务 ----------
-logDir  = fullfile(tempdir, ['p2_log_' datestr(now, 'yyyymmdd_HHMMSS')]);
+logDir  = tempname;
 mkdir(logDir);
 logFile = fullfile(logDir, 'server_stdout.log');
 pylog   = fullfile(logDir, 'python_signals.csv');
 serverPy = fullfile(controllerRoot, 'tcp', 'tcp_server.py');
+try
 
-% 用例复制到 ASCII 临时路径，避免 system() 命令里的中文路径被 cmd 乱码
-asciiCase = fullfile(tempdir, 'p2_case_current.txt');
+% 用例复制到临时目录并保留与 case_name 相同的文件名，避免编码问题且满足唯一性校验。
+tempCaseDir = tempname;
+mkdir(tempCaseDir);
+tempCaseCleanup = onCleanup(@() cleanup_temp_case(tempCaseDir)); %#ok<NASGU>
+asciiCase = fullfile(tempCaseDir, [c.case_name '.txt']);
 copyfile(caseFile, asciiCase);
 
-oldDir = cd(fullfile(controllerRoot, 'tcp'));
 setenv('PYTHONIOENCODING', 'utf-8');
 configTrucksim = normalize_trucksim_com_mode(useTrucksimCom);
-cmd = sprintf('start /b "" "%s" tcp_server.py --case "%s" --port %d --log-dir "%s" --config-trucksim %s > "%s" 2>&1', ...
+cmd = sprintf('"%s" tcp_server.py --case "%s" --port %d --log-dir "%s" --config-trucksim %s > "%s" 2>&1', ...
     pythonExe, asciiCase, port, logDir, configTrucksim, logFile);
-[st, ~] = system(cmd);
-cd(oldDir);
-if st ~= 0
-    error('run_single_python_case:PyLaunch', '无法启动 Python 服务: %s', cmd);
+launcherFile = fullfile(logDir, 'launch_server.cmd');
+fid = fopen(launcherFile, 'w');
+if fid < 0
+    error('run_single_python_case:LauncherWrite', '无法创建 Python 启动脚本: %s', launcherFile);
 end
+fprintf(fid, '@echo off\r\n%s\r\n', cmd);
+fclose(fid);
+serverProc = launch_server_process(launcherFile, fullfile(controllerRoot, 'tcp'));
+serverCleanup = onCleanup(@() stop_server_process(serverProc)); %#ok<NASGU>
 
 ready = false;
 for k = 1:180
@@ -92,6 +110,10 @@ for k = 1:180
            contains(txt, 'Traceback')
             error('run_single_python_case:PyStart', 'Python 服务启动失败:\n%s', txt);
         end
+    end
+    if serverProc.HasExited
+        error('run_single_python_case:PyExited', ...
+            'Python 服务在 LISTENING 前退出；检查归档的 python_stdout.log。');
     end
 end
 if ~ready
@@ -128,11 +150,29 @@ catch
 end
 
 %% ---------- 5. 等待 Python 服务退出 ----------
+stopped = false;
 for k = 1:60
     pause(0.2);
     if exist(logFile, 'file') && contains(fileread(logFile), 'SERVER_STOPPED')
+        stopped = true;
         break;
     end
+end
+serverText = '';
+if exist(logFile, 'file')
+    serverText = fileread(logFile);
+end
+requiredMarkers = {'LISTENING', 'HANDSHAKE_OK', 'STOP_OK', 'SERVER_STOPPED'};
+missingMarkers = requiredMarkers(~cellfun(@(s) contains(serverText, s), requiredMarkers));
+if ~stopped || ~isempty(missingMarkers) || contains(serverText, 'SERVER_ERROR') || ...
+        contains(serverText, 'Traceback')
+    error('run_single_python_case:ServerIntegrity', ...
+        'Python 服务完整性检查失败，缺少标记[%s]。日志: %s', ...
+        strjoin(missingMarkers, ', '), logFile);
+end
+if strcmp(configTrucksim, '1') && ~contains(serverText, 'CONFIG_READY')
+    error('run_single_python_case:ConfigIntegrity', ...
+        '严格配置模式下未出现 CONFIG_READY，拒绝归档结果。日志: %s', logFile);
 end
 
 %% ---------- 6. 导出 CSV ----------
@@ -180,6 +220,32 @@ end
 c.export_time_source = timeSource;
 c.raw_out_tout_end_s = sprintf('%.12g', rawToutEnd);
 c.tcp_sim_time_end_s = sprintf('%.12g', tcpTimeEnd);
+c.run_status = 'COMPLETED';
+c.tcp_integrity_status = strjoin(requiredMarkers, '|');
+if contains(serverText, 'CONFIG_READY')
+    c.trucksim_config_status = 'CONFIG_READY';
+elseif contains(serverText, 'CONFIG_WARN')
+    c.trucksim_config_status = 'CONFIG_WARN';
+else
+    c.trucksim_config_status = 'CONFIG_SKIP';
+end
+if contains(serverText, '[trucksim_par] 已修改')
+    c.trucksim_config_method = 'PAR_FILE_FALLBACK';
+elseif contains(serverText, '[trucksim_com] 已连接 COM')
+    c.trucksim_config_method = 'COM';
+elseif strcmp(c.trucksim_config_status, 'CONFIG_SKIP')
+    c.trucksim_config_method = 'SKIPPED';
+else
+    c.trucksim_config_method = 'UNKNOWN';
+end
+c.case_file_path = caseFile;
+c.model_file_path = mdlPath;
+c.simfile_path = trucksimSimFile;
+c.controller_entry_path = serverPy;
+c.controller_source_path = fullfile(controllerRoot, 'controller', 'zero_sideslip_controller.py');
+c.interface_version = 'p2-tcp-v1';
+c.python_executable = pythonExe;
+c.trucksim_version = 'TruckSim 2019.0';
 % 仅存在于 base 工作区的变量（不从 out 读取，避免 SimulationOutput 缺字段警告覆盖为空值）
 baseOnly = {'t', 'delta1_actual', 'delta2_actual', 'delta3_actual'};
 for i = 1:size(signals, 1)
@@ -222,9 +288,50 @@ if generateReport
         fprintf('[阶段二] 报告已生成\n');
     end
 end
+catch ME
+    % 失败工况也保留用例、Python 输出及错误堆栈，供批量状态表追溯。
+    if exist('serverProc', 'var')
+        stop_server_process(serverProc);
+    end
+    try
+        diagnosticDir = save_failure_diagnostics(reportRoot, caseFile, ...
+            logFile, pylog, ME);
+    catch archiveError
+        diagnosticDir = ['归档失败: ' archiveError.message '；临时日志: ' logDir];
+    end
+    wrapped = MException('run_single_python_case:CaseFailed', ...
+        '工况 %s 失败（%s）：%s。诊断目录: %s', ...
+        c.case_name, ME.identifier, ME.message, diagnosticDir);
+    wrapped = addCause(wrapped, ME);
+    throwAsCaller(wrapped);
+end
 end
 
 % ----------------------------------------------------------------------
+function diagnosticDir = save_failure_diagnostics(reportRoot, caseFile, logFile, pylog, ME)
+failureRoot = fullfile(reportRoot, 'failed_cases');
+if exist(failureRoot, 'dir') ~= 7, mkdir(failureRoot); end
+diagnosticDir = tempname(failureRoot);
+mkdir(diagnosticDir);
+copyfile(caseFile, fullfile(diagnosticDir, 'case.txt'));
+if exist(logFile, 'file') == 2
+    copyfile(logFile, fullfile(diagnosticDir, 'python_stdout.log'));
+end
+if exist(pylog, 'file') == 2
+    copyfile(pylog, fullfile(diagnosticDir, 'python_signals.csv'));
+end
+errorFile = fullfile(diagnosticDir, 'error.txt');
+fid = fopen(errorFile, 'w', 'n', 'UTF-8');
+if fid < 0
+    error('run_single_python_case:DiagnosticWrite', ...
+        '无法写入失败工况错误说明: %s', errorFile);
+end
+cleanup = onCleanup(@() fclose(fid)); %#ok<NASGU>
+fprintf(fid, 'case_file=%s\n', caseFile);
+fprintf(fid, 'error_identifier=%s\n', ME.identifier);
+fprintf(fid, '%s\n', getReport(ME, 'extended', 'hyperlinks', 'off'));
+end
+
 function v = getopt(opt, name, dflt)
 if isfield(opt, name) && ~isempty(opt.(name))
     v = opt.(name);
@@ -377,4 +484,37 @@ if any(~isfinite(dataTarget(:)))
     error('重采样后出现非有限数据。');
 end
 aligned = timeseries(dataTarget, targetT);
+end
+
+function proc = launch_server_process(launcherFile, workingDir)
+% 用可追踪的 cmd.exe 进程承载 Python；异常时可按进程树清理，避免端口残留。
+psi = System.Diagnostics.ProcessStartInfo();
+psi.FileName = 'cmd.exe';
+psi.Arguments = sprintf('/d /s /c ""%s""', launcherFile);
+psi.WorkingDirectory = workingDir;
+psi.UseShellExecute = false;
+psi.CreateNoWindow = true;
+proc = System.Diagnostics.Process.Start(psi);
+if isempty(proc)
+    error('run_single_python_case:PyLaunch', '无法启动 Python 服务。');
+end
+end
+
+function stop_server_process(proc)
+% 正常运行时 Python 已收到 STOP；异常路径用 taskkill 清理整个子进程树。
+try
+    if ~proc.HasExited
+        system(sprintf('taskkill /PID %d /T /F >NUL 2>&1', proc.Id));
+    end
+catch
+end
+end
+
+function cleanup_temp_case(tempCaseDir)
+if exist(tempCaseDir, 'dir')
+    try
+        rmdir(tempCaseDir, 's');
+    catch
+    end
+end
 end

@@ -1,0 +1,20 @@
+# 阶段二非零坡度单项验证：15 km/h、5% 上坡；不纳入常规四工况批量
+schema_version = 3
+case_name = step_steer_python_15kmh_grade5pct
+source_case_id = ROAD-GRADE-STEP-05
+trucksim_scenario = straight_road
+description = 15 km/h 直线路面 5% 上坡，1 s 后第一轴施加 1 度阶跃转角；单独验证坡度配置及真实联仿响应
+stop_time_s = 8
+initial_speed_kmh = 15
+target_speed_kmh = 15
+steer_input_type = step
+steer_amplitude_deg = 1
+steer_frequency_hz = 0
+steer_start_time_s = 1
+road_friction = 0.85
+road_grade = 5
+controller_mode = zero_sideslip
+control_dt_s = 0.01
+kp_beta = 0.6
+ki_beta = 0.5
+max_steer_deg = 20

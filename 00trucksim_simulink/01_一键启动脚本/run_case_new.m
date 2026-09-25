@@ -1,4 +1,5 @@
-%% run_case_new.m  -  一键启动脚本（适配 new_three_axle_vehicle_2dof_3dof_Trucksim）
+function [runNo, ioDir] = run_case_new(caseFile, opt)
+%% run_case_new  一键启动函数（无参数调用时运行默认工况）
 %  说明：
 %    * 模型只保留 TruckSim S-Function 输入/输出接口；
 %    * 转向输入由本脚本按测试用例生成 timeseries(steer_input)（单位：度），
@@ -14,45 +15,55 @@
 %    * 仿真前会按 TXT 配置 TruckSim；COM 不可用时自动修改当前 simfile
 %      所指向的参数文件。配置、时长、初始速度或实际转向不符时不会归档结果。
 
-clear; clc;
+clc;
+if nargin < 2, opt = struct(); end
 
 %% ===================== 0. 用户配置 =====================
-mdlName  = 'new_three_axle_vehicle_2dof_3dof_Trucksim';
+mdlName  = getopt(opt, 'mdlName', 'new_three_axle_vehicle_2dof_3dof_Trucksim');
 % 项目内路径由本脚本位置推导，项目移动到其他目录后无需再改这里。
 scriptDir   = fileparts(mfilename('fullpath'));
 projectRoot = fileparts(scriptDir);
-mdlPath  = fullfile(projectRoot, '00_simulink', ...
-    'new_three_axle_vehicle_2dof_3dof_Trucksim.slx');
-caseFile = fullfile(projectRoot, '02_测试用例', 'step_steer_30kmh.txt');
-dataRoot = fullfile(projectRoot, '03_数据存储');
-userName = '';  % 解析 TXT 后按转向类型自动确定归档子目录
+mdlPath  = getopt(opt, 'mdlPath', fullfile(projectRoot, '00_simulink', ...
+    'new_three_axle_vehicle_2dof_3dof_Trucksim.slx'));
+if nargin < 1 || isempty(caseFile)
+    caseFile = fullfile(projectRoot, '02_测试用例', 'sine_steer_40kmh.txt');
+end
+dataRoot = getopt(opt, 'dataRoot', fullfile(projectRoot, '03_数据存储'));
+userName = getopt(opt, 'userName', '');
 
 % 严格按 TXT 配置 TruckSim：COM 不可用时自动修改 simfile 指向的
 % Run_all.par 及其关联工况文件，并保留原文件备份。
-useTrucksimCom = true;
+useTrucksimCom = getopt(opt, 'useTrucksimCom', true);
 
 % Python 解释器（make_test_report_new.py 使用）
-pythonExe = 'C:\Python\python\python3.10.4\python.exe';
-generateReport = true;   % 仿真结束后自动生成曲线图与 Word 测试报告
+pythonExe = getopt(opt, 'pythonExe', 'C:\Python\python\python3.10.4\python.exe');
+generateReport = getopt(opt, 'generateReport', true);
 
-% TruckSim S-Function 运行环境与 simfile（必须绝对路径）
+% TruckSim S-Function 运行环境与阶段一专用 simfile（必须绝对路径）。
+% 首次使用或重新选择阶段一Run后，先运行 capture_phase1_simfile。
 trucksimSolverDir = 'C:\Trucksim2019\TruckSim2019.0_Prog\Programs\solvers';
 trucksimMlDir     = fullfile(trucksimSolverDir, 'Matlab84+');
-trucksimSimFile   = 'C:\Trucksim2019\TruckSim2019.0_Data\simfile.sim';
+simfilePointer    = fullfile(projectRoot, 'runtime', 'trucksim_phase1.path');
 addpath(trucksimMlDir, trucksimSolverDir, '-begin');
+if ~exist(simfilePointer, 'file')
+    error('run_case_new:NoSimFilePointer', ['阶段一专用simfile记录不存在: %s\n' ...
+        '请先在TruckSim选择阶段一Run并发送到Simulink，然后运行capture_phase1_simfile。'], ...
+        simfilePointer);
+end
+trucksimSimFile = strtrim(fileread(simfilePointer));
 if ~exist(trucksimSimFile, 'file')
-    warning('run_case_new:NoSimFile', 'TruckSim simfile not found: %s', trucksimSimFile);
+    error('run_case_new:NoSimFile', '阶段一专用simfile不存在: %s', trucksimSimFile);
 end
 
 %% ===================== 1. 解析测试用例 =====================
 c = parse_case(caseFile);
 switch lower(c.steer_input_type)
     case 'step'
-        userName = '阶跃输入转角';
+        if isempty(userName), userName = '阶跃输入转角'; end
     case 'sine'
-        userName = '正弦输入转角';
+        if isempty(userName), userName = '正弦输入转角'; end
     otherwise
-        userName = '其他输入转角';
+        if isempty(userName), userName = '其他输入转角'; end
 end
 fprintf('Case: %s | v0=%.2f km/h | steer=%s | t_end=%.2f s\n', ...
     c.case_name, str2double(c.initial_speed_kmh), c.steer_input_type, ...
@@ -78,7 +89,7 @@ if getSimulinkBlockHandle(sfunBlk) >= 0
     set_param(sfunBlk, 'SIMFILE', trucksimSimFile);
     fprintf('TruckSim S-Function SIMFILE set: %s\n', trucksimSimFile);
 else
-    warning('run_case_new:NoSfun', 'TruckSim S-Function block not found: %s', sfunBlk);
+    error('run_case_new:NoSfun', 'TruckSim S-Function block not found: %s', sfunBlk);
 end
 
 %% ===================== 3. 按测试用例生成转向输入 =====================
@@ -112,11 +123,13 @@ fprintf('Steering input built: type=%s, amplitude=%g deg, start=%.2f s\n', ...
 
 %% ===================== 4. TruckSim 参数设置 =====================
 if useTrucksimCom
-    ok = trucksim_config(c, caseFile, pythonExe, trucksimSimFile);
+    [ok, configMethod] = trucksim_config(c, caseFile, pythonExe, trucksimSimFile);
     if ~ok
         error('run_case_new:TrucksimConfig', ...
             'TruckSim configuration failed; simulation not started.');
     end
+else
+    configMethod = 'SKIPPED';
 end
 
 %% ===================== 5. 运行仿真 =====================
@@ -141,26 +154,43 @@ signals = {
     'delta_input',      'state_steer_delta_deg';
 };
 
-% 时间向量：优先取 sim() 的 tout，否则从任意 Timeseries 输出取时间
+% 内部仿真可保持更密步长；正式 CSV 统一按需求降采样到 0.01 s。
 try
-    tt = out.tout;
+    rawT = double(out.tout(:));
 catch
-    tt = out.x_trucksim.Time;
+    rawT = double(out.x_trucksim.Time(:));
 end
-assignin('base', 't', tt(:));
+exportDt = 0.01;
+tt = (0:exportDt:tEnd)';
+if isempty(tt) || abs(tt(end) - tEnd) > 1e-9
+    tt(end + 1, 1) = tEnd;
+end
+assignin('base', 't', tt);
 
 for i = 1:size(signals, 1)
     v = signals{i, 1};
     if strcmp(v, 't'), continue; end
     try
-        assignin('base', v, out.(v));
-    catch
-        warning('run_case_new:NoOutVar', 'sim() output has no field "%s".', v);
+        assignin('base', v, align_signal_to_time(out.(v), tt, rawT, v));
+    catch ME
+        error('run_case_new:SignalAlignFailed', ...
+            '无法将输出 "%s" 对齐到 0.01 s 时间轴：%s', v, ME.message);
     end
 end
 
-[ioCsv, infoCsv, runNo] = export_case_csv(dataRoot, userName, c, signals);
-fprintf('CSV saved:\n  %s\n  %s\n', ioCsv, infoCsv);
+c.run_status = 'COMPLETED';
+c.trucksim_config_status = ternary(useTrucksimCom, 'CONFIG_READY', 'CONFIG_SKIP');
+c.trucksim_config_method = configMethod;
+c.case_file_path = caseFile;
+c.model_file_path = mdlPath;
+c.simfile_path = trucksimSimFile;
+c.export_sample_period_s = sprintf('%.12g', exportDt);
+c.python_executable = pythonExe;
+c.trucksim_version = 'TruckSim 2019.0';
+[ioCsv, infoCsv, runNo, metricsCsv] = export_case_csv(dataRoot, userName, c, signals);
+ioDir = fileparts(ioCsv);
+copyfile(caseFile, fullfile(ioDir, [runNo '_case.txt']));
+fprintf('CSV saved:\n  %s\n  %s\n  %s\n', ioCsv, infoCsv, metricsCsv);
 
 %% ===================== 7. 生成报告 =====================
 % 调用 make_test_report_new.py 绘制曲线并生成 Word 测试报告，
@@ -177,12 +207,12 @@ if generateReport
                 fprintf(fid, '%s', runNo);
                 fclose(fid);
             else
-                warning('run_case_new:MarkerWriteFailed', ...
+                error('run_case_new:MarkerWriteFailed', ...
                     'Cannot write run marker file: %s', markerFile);
             end
             oldDir = cd(scriptDir);   % 脚本目录作为工作目录，命令不含中文路径
             try
-                cmd = sprintf('%s make_test_report_new.py', pythonExe);
+                cmd = sprintf('"%s" make_test_report_new.py', pythonExe);
                 fprintf('Generating report via: %s ...\n', cmd);
                 [st, msg] = system(cmd);
             catch ME
@@ -197,19 +227,60 @@ if generateReport
             end
             reportRoot = fullfile(fileparts(scriptDir), '04_测试报告');
             reportDir  = fullfile(reportRoot, runNo);
-            if st == 0 && exist(reportDir, 'dir')
+            reportFile = fullfile(reportDir, [runNo '.docx']);
+            if st == 0 && exist(reportFile, 'file')
                 fprintf('Report generated: %s\n', reportDir);
             else
-                warning('run_case_new:ReportFailed', ...
+                error('run_case_new:ReportFailed', ...
                     ['Report generation failed (exit=%d). ' ...
                      'Log saved to %s:\n%s'], st, logFile, msg);
             end
         else
-            warning('run_case_new:NoPython', ...
+            error('run_case_new:NoPython', ...
                 'Python not found at %s; report step skipped.', pythonExe);
         end
     else
-        warning('run_case_new:NoReportScript', ...
+        error('run_case_new:NoReportScript', ...
             'Report script not found: %s', pyScript);
     end
+end
+
+end
+
+function v = getopt(opt, name, dflt)
+if isfield(opt, name) && ~isempty(opt.(name)), v = opt.(name); else, v = dflt; end
+end
+
+function aligned = align_signal_to_time(signal, targetT, rawT, signalName)
+if isa(signal, 'timeseries')
+    sourceT = double(signal.Time(:));
+    data = double(signal.Data);
+elseif isstruct(signal) && isfield(signal, 'time') && isfield(signal, 'signals')
+    sourceT = double(signal.time(:));
+    data = double(signal.signals.values);
+else
+    data = double(signal);
+    if isvector(data), data = data(:); end
+    if size(data, 1) ~= numel(rawT)
+        error('输出不带时间且行数与 out.tout 不一致。');
+    end
+    sourceT = rawT;
+end
+if isvector(data), data = data(:); end
+if size(data, 1) ~= numel(sourceT)
+    error('时间行数(%d)与数据行数(%d)不一致。', numel(sourceT), size(data, 1));
+end
+if isempty(sourceT) || any(~isfinite(sourceT)) || any(diff(sourceT) < -1e-9)
+    error('源时间轴为空、非有限或非单调。');
+end
+if targetT(1) < sourceT(1) - 1e-9 || targetT(end) > sourceT(end) + 1e-9
+    error('目标时间轴超出 "%s" 源时间范围。', signalName);
+end
+dataTarget = interp1(sourceT, data, targetT, 'linear');
+if any(~isfinite(dataTarget(:))), error('重采样后出现非有限数据。'); end
+aligned = timeseries(dataTarget, targetT);
+end
+
+function out = ternary(cond, a, b)
+if cond, out = a; else, out = b; end
 end

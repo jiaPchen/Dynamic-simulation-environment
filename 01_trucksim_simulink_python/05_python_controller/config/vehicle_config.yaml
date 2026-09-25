@@ -22,9 +22,10 @@ controller:
 trucksim:
   run_name: "ORAC-BLFISMC1017 #phase2"   # 固定联仿 Run 名称（COM 配置用，需按目标机确认）
   com_progids: ["TruckSim.Application", "TruckSim2019.Application", "TS.Application"]  # 可尝试的 COM 程序标识
-  simfile_path: "C:/Trucksim2019/TruckSim2019.0_Data/simfile.sim"  # COM 不可用时，按该 simfile 定位并修改 Run_all.par
+  simfile_path: "${PROJECT_RUNTIME_SIMFILE}"  # 由tcp_server读取runtime/trucksim_phase2.path
   allow_par_file_patch: true              # 方法2：直接修改 Simulink S-Function 实际读取的 Run_all.par
-  road_base_mu: 0.85                     # 当前道路数据集基准附着系数（MY_FRICTION 为倍率）
+  prefer_par_file_patch: true             # 本机未注册 COM；此路径会回读道路/速度/附着配置
+  road_base_mu: 0.85                     # 道路文件中的基准MU；仅写MY_FRICTION=TXT目标MU/本值
   # TXT 字段到 TruckSim COM 关键字的集中映射。若目标机控件名不同，只改这里。
   com_keywords:
     stop_time_s: ["TSTOP"]
@@ -32,7 +33,12 @@ trucksim:
     target_speed_kmh: ["SPEED_TARGET_CONSTANT"]
     road_friction_scale: ["MY_FRICTION"]
     init_speed_enable: ["OPT_INIT_SPEED"]
-    # road_grade: ["ROAD_GRADE"]          # 目标机确认坡度控件后再启用
-  # 场景名到 TruckSim 数值参数的映射。straight_road 是当前固定 Run 默认场景。
+  # road_grade 不走 COM；TXT 单位是坡度百分数，5 表示 5%，由 par 路径写为 ROAD_ZS_COEFFICIENT=0.05。
+  # 场景名到阶段二专用 Run_all.par 道路高程配置的映射，不修改共享 Roads/*.par。
+  # straight_road 的平面线形仍是当前直线道路，road_grade 可指定 -90%~90% 的均匀纵坡。
+  # hill_20deg 复用 TruckSim 2019 示例高程表；这是一个固定起伏场景，TXT road_grade 必须为 0。
   scenario_map:
-    straight_road: {}
+    straight_road:
+      road_elevation: uniform_grade
+    hill_20deg:
+      road_elevation: hill_20deg

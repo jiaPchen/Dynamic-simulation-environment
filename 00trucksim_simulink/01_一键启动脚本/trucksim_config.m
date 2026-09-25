@@ -1,9 +1,10 @@
-function ok = trucksim_config(caseStruct, caseFile, pythonExe, simfilePath)
+function [ok, method] = trucksim_config(caseStruct, caseFile, pythonExe, simfilePath)
 % TRUCKSIM_CONFIG  Apply one TXT case before the TruckSim S-Function starts.
-% Uses the shared, verified COM/par-file fallback from phase two. When COM is
-% unavailable it updates the active simfile's parameter files with backups.
+% Uses the local stage-one COM/par-file fallback. When COM is unavailable it
+% updates the active simfile's parameter files with backups.
 
 ok = false;
+method = 'UNKNOWN';
 scriptDir = fileparts(mfilename('fullpath'));
 configScript = fullfile(scriptDir, 'configure_trucksim_case.py');
 if ~exist(configScript, 'file') || ~exist(pythonExe, 'file') || ...
@@ -25,6 +26,11 @@ try
     [st, msg] = system(cmd);
     fprintf('%s\n', msg);
     ok = st == 0 && contains(msg, 'CONFIG_READY');
+    if contains(msg, '[phase1_par] 已更新')
+        method = 'PAR_FILE_FALLBACK';
+    elseif contains(msg, '[phase1_com] 已连接COM')
+        method = 'COM';
+    end
 catch ME
     warning('trucksim_config:ConfigHelperFailed', '%s', ME.message);
 end

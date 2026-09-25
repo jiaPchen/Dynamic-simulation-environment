@@ -40,14 +40,16 @@ for i = 1:numel(lines)
 end
 
 % ---- Required fields and range checks ----
-required = {'schema_version', 'case_name', 'stop_time_s', 'initial_speed_kmh', 'steer_input_type'};
+required = {'schema_version', 'case_name', 'stop_time_s', 'initial_speed_kmh', ...
+    'steer_input_type', 'steer_amplitude_deg', 'steer_start_time_s', ...
+    'control_dt_s', 'controller_mode'};
 missing = required(~ismember(required, fieldnames(c)));
 if ~isempty(missing)
     error('parse_case:MissingField', 'Missing required field(s): %s', ...
         strjoin(missing, ', '));
 end
 
-checkNum(c, 'stop_time_s',        0, Inf);
+checkNum(c, 'stop_time_s',      eps, Inf);
 checkNum(c, 'initial_speed_kmh',  0, 500);
 checkNum(c, 'schema_version',     1, 99);
 if isfield(c, 'steer_amplitude_deg'), checkNum(c, 'steer_amplitude_deg', -90, 90); end
@@ -66,12 +68,27 @@ if ~ismember(lower(c.steer_input_type), allowedSteer)
         'steer_input_type="%s" 不支持，阶段二仅支持 step 或 sine。', c.steer_input_type);
 end
 c.steer_input_type = lower(c.steer_input_type);
+if strcmp(c.steer_input_type, 'sine')
+    if ~isfield(c, 'steer_frequency_hz')
+        error('parse_case:MissingField', '正弦用例缺少 steer_frequency_hz。');
+    end
+    checkNum(c, 'steer_frequency_hz', eps, 100);
+end
+if str2double(c.steer_start_time_s) > str2double(c.stop_time_s)
+    error('parse_case:BadSteerStart', ...
+        'steer_start_time_s 不能晚于 stop_time_s。');
+end
+if abs(str2double(c.control_dt_s) - 0.01) > 1e-12
+    error('parse_case:ControlDtMismatch', ...
+        ['当前 Simulink TCP Client 固定控制周期为 0.01 s；' ...
+         '用例 control_dt_s 必须为 0.01，实际为 %s。'], c.control_dt_s);
+end
 
 % ---- File name vs. case_name consistency ----
 [~, baseName] = fileparts(txtFile);
 if ~strcmp(baseName, c.case_name)
-    warning('parse_case:NameMismatch', ...
-        'File name (%s) differs from case_name (%s).', baseName, c.case_name);
+    error('parse_case:NameMismatch', ...
+        'File name (%s) must equal case_name (%s).', baseName, c.case_name);
 end
 
 end

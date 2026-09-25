@@ -39,8 +39,14 @@ from trucksim.trucksim_com import configure_trucksim  # noqa: E402
 
 HOST = "127.0.0.1"
 PROTOCOL = 1
+INTERFACE_VERSION = "p2-tcp-v1"
+CONTROL_DT_S = 0.01
 EXPECTED_INPUTS = ["Vx_kmh", "beta_deg", "w_degps"]
 EXPECTED_OUTPUTS = ["d1L", "d1R", "d2L", "d2R", "d3L", "d3R"]
+EXPECTED_UNITS = {
+    "Vx_kmh": "km/h", "beta_deg": "deg", "w_degps": "deg/s",
+    "controls": "deg",
+}
 LOG_COLS = [
     "step_id", "sim_time_s", "Vx_kmh", "beta_deg", "w_degps",
     "delta1_deg", "delta2_deg", "delta3_deg", "fb_deg", "beta_int_deg", "status",
@@ -51,6 +57,25 @@ def load_yaml(path):
     import yaml
     with open(path, "r", encoding="utf-8") as f:
         return yaml.safe_load(f)
+
+
+def resolve_project_paths(cfg, project_root):
+    """展开YAML中的项目路径占位符，避免依赖当前工作目录。"""
+    trucksim = cfg.setdefault("trucksim", {})
+    simfile = trucksim.get("simfile_path")
+    if isinstance(simfile, str) and "${PROJECT_ROOT}" in simfile:
+        trucksim["simfile_path"] = os.path.normpath(
+            simfile.replace("${PROJECT_ROOT}", project_root))
+    elif simfile == "${PROJECT_RUNTIME_SIMFILE}":
+        pointer = os.path.join(project_root, "runtime", "trucksim_phase2.path")
+        if not os.path.isfile(pointer):
+            raise RuntimeError("阶段二专用simfile记录不存在: %s；请先运行 capture_phase2_simfile" % pointer)
+        with open(pointer, "r", encoding="utf-8") as handle:
+            target = handle.read().strip()
+        if not target or not os.path.isfile(target):
+            raise RuntimeError("阶段二专用simfile记录无效: %s" % target)
+        trucksim["simfile_path"] = os.path.normpath(target)
+    return cfg
 
 
 def log_row(writer, diag, states, t, step, status):
@@ -66,7 +91,7 @@ def _require(cond, message):
         raise RuntimeError(message)
 
 
-def validate_hello(hello):
+def validate_hello(hello, expected_dt=CONTROL_DT_S):
     _require(hello.get("type") == "HELLO", "握手失败：期望 HELLO")
     _require(int(hello.get("protocol", -1)) == PROTOCOL,
              "协议版本不一致：Python=%d, Simulink=%s" % (PROTOCOL, hello.get("protocol")))
@@ -74,6 +99,18 @@ def validate_hello(hello):
              "输入信号列表不一致：%s" % hello.get("inputs"))
     _require(list(hello.get("outputs", [])) == EXPECTED_OUTPUTS,
              "输出信号列表不一致：%s" % hello.get("outputs"))
+    _require(hello.get("interface_version") == INTERFACE_VERSION,
+             "接口版本不一致：Python=%s, Simulink=%s"
+             % (INTERFACE_VERSION, hello.get("interface_version")))
+    _require(hello.get("units") == EXPECTED_UNITS,
+             "接口单位不一致：%s" % hello.get("units"))
+    try:
+        hello_dt = float(hello.get("dt"))
+    except (TypeError, ValueError):
+        raise RuntimeError("HELLO 缺少有效 dt")
+    _require(math.isfinite(hello_dt) and abs(hello_dt - expected_dt) <= 1e-12,
+             "控制周期不一致：Python=%g s, Simulink=%s s"
+             % (expected_dt, hello.get("dt")))
 
 
 def validate_state(msg, expected_step):
@@ -110,7 +147,11 @@ def main():
     base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     cfg_path = args.vehicle_config or os.path.join(base, "config", "vehicle_config.yaml")
     cfg = load_yaml(cfg_path)
+    # base 是05_python_controller；项目根目录在其上一级。
+    cfg = resolve_project_paths(cfg, os.path.dirname(base))
     dt = float(case.get("control_dt_s", 0.01))
+    _require(abs(dt - CONTROL_DT_S) <= 1e-12,
+             "当前接口控制周期固定为 %.2f s，用例给出 %g s" % (CONTROL_DT_S, dt))
     cfg["dt"] = dt
 
     if args.config_trucksim in ("1", "auto"):
@@ -153,12 +194,14 @@ def main():
                 f_in = conn.makefile("r", encoding="utf-8")
                 f_out = conn.makefile("w", encoding="utf-8")
                 hello = json.loads(f_in.readline())
-                validate_hello(hello)
+                validate_hello(hello, dt)
                 ready = {
                     "type": "READY", "protocol": PROTOCOL,
                     "input_dim": len(EXPECTED_INPUTS), "output_dim": len(EXPECTED_OUTPUTS),
                     "controller": "zero_sideslip",
                     "dt": dt,
+                    "interface_version": INTERFACE_VERSION,
+                    "units": EXPECTED_UNITS,
                 }
                 f_out.write(json.dumps(ready, ensure_ascii=False) + "\n")
                 f_out.flush()
@@ -167,6 +210,14 @@ def main():
             except (json.JSONDecodeError, RuntimeError, ValueError, TypeError,
                     socket.timeout, OSError) as e:
                 print("REJECT_CONN %s" % e, flush=True)
+                for stream in (f_in, f_out):
+                    if stream is not None:
+                        try:
+                            stream.close()
+                        except Exception:
+                            pass
+                f_in = None
+                f_out = None
                 if conn is not None:
                     try:
                         conn.close()

@@ -1,0 +1,20 @@
+# 阶段二道路坡度联仿验证用例；不在常规 02_测试用例 批量目录内。
+schema_version = 3
+case_name = road_grade_5pct_15kmh
+source_case_id = ROAD-GRADE-05
+trucksim_scenario = straight_road
+description = 15 km/h 直线道路 5% 上坡，检验 ROAD_ZS_COEFFICIENT 是否进入求解器
+stop_time_s = 8
+initial_speed_kmh = 15
+target_speed_kmh = 15
+steer_input_type = sine
+steer_amplitude_deg = 1
+steer_frequency_hz = 0.2
+steer_start_time_s = 1
+road_friction = 0.85
+road_grade = 5
+controller_mode = zero_sideslip
+control_dt_s = 0.01
+kp_beta = 0.6
+ki_beta = 0.5
+max_steer_deg = 20

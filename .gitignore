@@ -1,0 +1,21 @@
+# Python caches
+**/__pycache__/
+*.py[cod]
+
+# MATLAB/Simulink generated caches and editor backups
+*.slxc
+*.slx.autosave
+*.autosave
+*.asv
+*.m~
+slprj/
+codegen/
+
+# Local transient logs
+*.tmp
+*.temp
+~$*
+
+# OS metadata
+Thumbs.db
+.DS_Store

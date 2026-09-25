@@ -30,18 +30,16 @@ def main():
     parser.add_argument("--simfile", required=True)
     args = parser.parse_args()
 
-    stage1_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    project_root = os.path.dirname(stage1_root)
-    phase2_trucksim = os.path.join(
-        project_root, "01_trucksim_simulink_python", "05_python_controller", "trucksim"
-    )
-    if not os.path.isfile(os.path.join(phase2_trucksim, "trucksim_com.py")):
-        raise FileNotFoundError("缺少共享 TruckSim 配置模块: %s" % phase2_trucksim)
-    sys.path.insert(0, phase2_trucksim)
-    from trucksim_com import configure_trucksim
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    backend = os.path.join(script_dir, "trucksim_config_backend.py")
+    if not os.path.isfile(backend):
+        raise FileNotFoundError("缺少阶段一本地TruckSim配置模块: %s" % backend)
+    sys.path.insert(0, script_dir)
+    from trucksim_config_backend import configure_trucksim
 
     case = read_case(args.case)
     config = {"trucksim": {
+        "run_name": "ORAC-BLFISMC1017 #phase1",
         "simfile_path": os.path.abspath(args.simfile),
         "allow_par_file_patch": True,
         "road_base_mu": 0.85,

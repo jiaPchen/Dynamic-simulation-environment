@@ -11,7 +11,7 @@ import tempfile
 import time
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CASE = os.path.join(ROOT, "..", "02_测试用例", "step_steer_python.txt")
+CASE = os.path.join(ROOT, "..", "02_测试用例", "step_steer_python_40kmh.txt")
 
 
 def recv_line(f):
@@ -43,19 +43,35 @@ def main():
         else:
             raise RuntimeError("等待 LISTENING 超时")
 
-        s = socket.create_connection(("127.0.0.1", port), timeout=10)
-        f_in = s.makefile("r", encoding="utf-8")
-        f_out = s.makefile("w", encoding="utf-8")
         hello = {
             "type": "HELLO", "protocol": 1, "dt": 0.01,
+            "interface_version": "p2-tcp-v1",
+            "units": {"Vx_kmh": "km/h", "beta_deg": "deg",
+                      "w_degps": "deg/s", "controls": "deg"},
             "inputs": ["Vx_kmh", "beta_deg", "w_degps"],
             "outputs": ["d1L", "d1R", "d2L", "d2R", "d3L", "d3R"],
         }
+
+        # 错误控制周期必须在握手阶段被拒绝，不能静默进入周期通讯。
+        bad = socket.create_connection(("127.0.0.1", port), timeout=10)
+        bad_in = bad.makefile("r", encoding="utf-8")
+        bad_out = bad.makefile("w", encoding="utf-8")
+        bad_hello = dict(hello, dt=0.02)
+        bad_out.write(json.dumps(bad_hello) + "\n")
+        bad_out.flush()
+        assert bad_in.readline() == "", "错误控制周期的握手应被拒绝"
+        bad.close()
+
+        s = socket.create_connection(("127.0.0.1", port), timeout=10)
+        f_in = s.makefile("r", encoding="utf-8")
+        f_out = s.makefile("w", encoding="utf-8")
         f_out.write(json.dumps(hello) + "\n")
         f_out.flush()
         ready = recv_line(f_in)
         print("READY:", ready)
         assert ready["type"] == "READY"
+        assert ready["dt"] == 0.01
+        assert ready["interface_version"] == "p2-tcp-v1"
 
         # t=0.5 (t<t0) 与 t=2.0 (t>=t0) 两个状态；step_id 应连续递增。
         for step_id, (t, beta) in enumerate([(0.5, 0.0), (2.0, 0.5)]):
@@ -90,7 +106,7 @@ def main():
             lines = f.read().strip().splitlines()
         print("CSV 行数(含表头):", len(lines))
         assert len(lines) == 3  # 表头 + 2 条记录
-        print("测试通过 ✓")
+        print("测试通过 [OK]")
     finally:
         if proc.poll() is None:
             proc.kill()

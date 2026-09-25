@@ -44,6 +44,7 @@ catch
     port = 50007;   % 未设置时默认 50007
 end
 dt = 0.01;
+interfaceVersion = 'p2-tcp-v1';
 
 d = struct();
 d.socket = java.net.Socket(host, port);
@@ -56,6 +57,9 @@ d.inp = java.io.BufferedReader( ...
 d.step = 0;
 
 hello = struct('type','HELLO','protocol',1,'dt',dt, ...
+    'interface_version', interfaceVersion, ...
+    'units', struct('Vx_kmh','km/h','beta_deg','deg','w_degps','deg/s', ...
+                    'controls','deg'), ...
     'inputs', {{'Vx_kmh','beta_deg','w_degps'}}, ...
     'outputs', {{'d1L','d1R','d2L','d2R','d3L','d3R'}});
 d.out.println(jsonencode(hello));
@@ -68,6 +72,11 @@ resp = jsondecode(line);
 if ~isfield(resp, 'type') || ~strcmp(resp.type, 'READY')
     error('tcp:handshake', '握手失败: %s', line);
 end
+if ~isfield(resp, 'dt') || abs(double(resp.dt) - dt) > 1e-12 || ...
+        ~isfield(resp, 'interface_version') || ...
+        ~strcmp(resp.interface_version, interfaceVersion)
+    error('tcp:handshake', 'READY 的周期或接口版本不一致: %s', line);
+end
 
 conn_store(block, 'set', d);
 end
@@ -76,6 +85,8 @@ function Outputs(block)
 d  = conn_store(block, 'get');
 t  = block.CurrentTime;
 st = block.InputPort(1).Data(:)';
+% 通信失败时先写入安全零转角，再终止仿真，避免保留上一拍控制量。
+block.OutputPort(1).Data = zeros(1, 6);
 
 msg = struct('type','STATE','step_id',d.step,'t',t,'states',st);
 try
@@ -94,7 +105,7 @@ if ~isfield(resp, 'type') || ~strcmp(resp.type, 'CONTROL') || resp.step_id ~= d.
 end
 
 ctrl = double(resp.controls(:)');
-if numel(ctrl) ~= 6
+if numel(ctrl) ~= 6 || any(~isfinite(ctrl))
     error('tcp:dim', '控制量维度错误(应为6): %d', numel(ctrl));
 end
 block.OutputPort(1).Data = ctrl;

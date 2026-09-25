@@ -12,6 +12,7 @@ import csv
 import json
 import os
 import sys
+from collections import OrderedDict
 
 os.environ.setdefault(
     "MPLCONFIGDIR",
@@ -24,6 +25,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 from docx import Document
+from docx.enum.table import WD_CELL_VERTICAL_ALIGNMENT, WD_TABLE_ALIGNMENT
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
@@ -137,37 +139,110 @@ def plot_figs(rows, report_dir):
 
 
 def metrics(rows, case):
+    t = np.array([r["t"] for r in rows if np.isfinite(r["t"])])
     v = np.array([r["Vx_kmh"] for r in rows if not np.isnan(r["Vx_kmh"])])
     b = np.array([r["beta_deg"] for r in rows if not np.isnan(r["beta_deg"])])
     w = np.array([r["w_degps"] for r in rows if not np.isnan(r["w_degps"])])
     d1 = np.array([r["delta1_deg"] for r in rows if not np.isnan(r["delta1_deg"])])
+    d2 = np.array([r["delta2_deg"] for r in rows if not np.isnan(r["delta2_deg"])])
     d3 = np.array([r["delta3_deg"] for r in rows if not np.isnan(r["delta3_deg"])])
     m = {
         "duration_s": rows[-1]["t"] - rows[0]["t"] if rows else 0,
+        "sample_count": len(rows),
+        "sample_period_median_s": float(np.median(np.diff(t))) if len(t) > 1 else np.nan,
         "v_start_kmh": float(v[0]) if len(v) else np.nan,
         "v_end_kmh": float(v[-1]) if len(v) else np.nan,
         "v_max_kmh": float(np.nanmax(v)) if len(v) else np.nan,
         "max_abs_beta_deg": float(np.nanmax(np.abs(b))) if len(b) else np.nan,
         "max_abs_yaw_degps": float(np.nanmax(np.abs(w))) if len(w) else np.nan,
         "max_abs_delta1_deg": float(np.nanmax(np.abs(d1))) if len(d1) else np.nan,
+        "max_abs_delta2_deg": float(np.nanmax(np.abs(d2))) if len(d2) else np.nan,
         "max_abs_delta3_deg": float(np.nanmax(np.abs(d3))) if len(d3) else np.nan,
     }
+    try:
+        target = float(case.get("target_speed_kmh", case.get("initial_speed_kmh", "nan")))
+    except (TypeError, ValueError):
+        target = np.nan
+    m["target_speed_kmh"] = target
+    m["v_end_error_kmh"] = m["v_end_kmh"] - target if np.isfinite(target) else np.nan
+    m["v_end_error_percent"] = (
+        100.0 * m["v_end_error_kmh"] / target
+        if np.isfinite(target) and abs(target) > 1e-12 else np.nan
+    )
+    m["execution_status"], m["execution_notes"] = assess_execution(rows, case, m)
+    m["controller_acceptance_status"] = "NOT_EVALUATED"
     return m
+
+
+def assess_execution(rows, case, m):
+    """判定流程和数据是否完整；不评价控制器性能。"""
+    reasons = []
+    if case.get("run_status", "UNKNOWN").upper() != "COMPLETED":
+        reasons.append("运行状态不是 COMPLETED")
+    if m["sample_count"] < 2:
+        reasons.append("有效采样点不足")
+    dt = m["sample_period_median_s"]
+    if not np.isfinite(dt) or dt <= 0:
+        reasons.append("采样周期无效")
+    try:
+        expected_stop = float(case.get("stop_time_s", "nan"))
+    except (TypeError, ValueError):
+        expected_stop = np.nan
+    tolerance = max(1.5 * dt, 1e-6) if np.isfinite(dt) else 1e-6
+    if np.isfinite(expected_stop) and m["duration_s"] + tolerance < expected_stop:
+        reasons.append("时间轴未覆盖设定仿真时长")
+    required_keys = ("Vx_kmh", "beta_deg", "w_degps", "delta1_deg", "delta2_deg", "delta3_deg")
+    for key in required_keys:
+        vals = np.array([r[key] for r in rows], dtype=float)
+        if len(vals) == 0 or not np.all(np.isfinite(vals)):
+            reasons.append("信号 %s 含无效值" % key)
+    required_markers = {"LISTENING", "HANDSHAKE_OK", "STOP_OK", "SERVER_STOPPED"}
+    markers = set(filter(None, case.get("tcp_integrity_status", "").split("|")))
+    missing_markers = sorted(required_markers - markers)
+    if missing_markers:
+        reasons.append("TCP 标记缺失：%s" % ", ".join(missing_markers))
+    if case.get("trucksim_config_status", "") != "CONFIG_READY":
+        reasons.append("TruckSim 工况配置状态不是 CONFIG_READY")
+    return ("PASS", ["运行、时间轴、必需信号、TCP 生命周期和TruckSim配置均完整"]) \
+        if not reasons else ("FAIL", reasons)
 
 
 def write_metrics_csv(run_dir, run_no, m):
     out = os.path.join(run_dir, run_no + "_metrics.csv")
+    existing = OrderedDict()
+    if os.path.isfile(out):
+        try:
+            for row in read_csv(out):
+                key = row.get("metric", "")
+                if key and key not in existing:
+                    existing[key] = (row.get("value", ""), row.get("unit", ""))
+        except (OSError, csv.Error):
+            existing = OrderedDict()
+    canonical = OrderedDict([
+        ("duration", ("%.15g" % m["duration_s"], "s")),
+        ("sample_count", (str(m["sample_count"]), "count")),
+        ("sample_period_median", ("%.15g" % m["sample_period_median_s"], "s")),
+        ("v_start", ("%.15g" % m["v_start_kmh"], "km/h")),
+        ("v_end", ("%.15g" % m["v_end_kmh"], "km/h")),
+        ("v_max", ("%.15g" % m["v_max_kmh"], "km/h")),
+        ("v_end_error", ("%.15g" % m["v_end_error_kmh"], "km/h")),
+        ("v_end_error_percent", ("%.15g" % m["v_end_error_percent"], "%")),
+        ("max_abs_beta", ("%.15g" % m["max_abs_beta_deg"], "deg")),
+        ("max_abs_yaw_rate", ("%.15g" % m["max_abs_yaw_degps"], "deg/s")),
+        ("max_abs_delta1", ("%.15g" % m["max_abs_delta1_deg"], "deg")),
+        ("max_abs_delta2", ("%.15g" % m["max_abs_delta2_deg"], "deg")),
+        ("max_abs_delta3", ("%.15g" % m["max_abs_delta3_deg"], "deg")),
+        ("execution_status", (m["execution_status"], "")),
+        ("acceptance_status", ("NOT_EVALUATED", "")),
+    ])
+    for key, value in existing.items():
+        if key not in canonical:
+            canonical[key] = value
     with open(out, "w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
         w.writerow(["metric", "value", "unit"])
-        w.writerow(["duration", "%.15g" % m["duration_s"], "s"])
-        w.writerow(["v_start", "%.15g" % m["v_start_kmh"], "km/h"])
-        w.writerow(["v_end", "%.15g" % m["v_end_kmh"], "km/h"])
-        w.writerow(["v_max", "%.15g" % m["v_max_kmh"], "km/h"])
-        w.writerow(["max_abs_beta", "%.15g" % m["max_abs_beta_deg"], "deg"])
-        w.writerow(["max_abs_yaw_rate", "%.15g" % m["max_abs_yaw_degps"], "deg/s"])
-        w.writerow(["max_abs_delta1", "%.15g" % m["max_abs_delta1_deg"], "deg"])
-        w.writerow(["max_abs_delta3", "%.15g" % m["max_abs_delta3_deg"], "deg"])
+        for key, (value, unit) in canonical.items():
+            w.writerow([key, value, unit])
     return out
 
 
@@ -185,7 +260,63 @@ def add_heading(doc, text):
     p = doc.add_paragraph()
     p.paragraph_format.space_before = Pt(8)
     p.paragraph_format.space_after = Pt(4)
-    add_run(p, text, size=Pt(15), bold=True, color=RGBColor(0x2E, 0x74, 0xB5))
+    add_run(p, text, size=Pt(15), bold=True, color=RGBColor(0x00, 0x00, 0x00))
+
+
+def set_cell_shading(cell, fill):
+    tc_pr = cell._tc.get_or_add_tcPr()
+    shd = tc_pr.find(qn("w:shd"))
+    if shd is None:
+        shd = OxmlElement("w:shd")
+        tc_pr.append(shd)
+    shd.set(qn("w:fill"), fill)
+
+
+def set_cell_margins(cell, top=80, start=90, bottom=80, end=90):
+    tc = cell._tc
+    tc_pr = tc.get_or_add_tcPr()
+    tc_mar = tc_pr.first_child_found_in("w:tcMar")
+    if tc_mar is None:
+        tc_mar = OxmlElement("w:tcMar")
+        tc_pr.append(tc_mar)
+    for name, value in (("top", top), ("start", start), ("bottom", bottom), ("end", end)):
+        node = tc_mar.find(qn("w:" + name))
+        if node is None:
+            node = OxmlElement("w:" + name)
+            tc_mar.append(node)
+        node.set(qn("w:w"), str(value))
+        node.set(qn("w:type"), "dxa")
+
+
+def set_cell_borders(cell, color="D9D9D9", size="6"):
+    tc_pr = cell._tc.get_or_add_tcPr()
+    borders = tc_pr.first_child_found_in("w:tcBorders")
+    if borders is None:
+        borders = OxmlElement("w:tcBorders")
+        tc_pr.append(borders)
+    for edge in ("top", "left", "bottom", "right"):
+        node = borders.find(qn("w:" + edge))
+        if node is None:
+            node = OxmlElement("w:" + edge)
+            borders.append(node)
+        node.set(qn("w:val"), "single")
+        node.set(qn("w:sz"), size)
+        node.set(qn("w:space"), "0")
+        node.set(qn("w:color"), color)
+
+
+def format_table(tbl, header_fill="D9EAF7"):
+    tbl.alignment = WD_TABLE_ALIGNMENT.CENTER
+    tbl.autofit = True
+    for row_idx, row in enumerate(tbl.rows):
+        for cell in row.cells:
+            cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
+            set_cell_margins(cell)
+            set_cell_borders(cell)
+            if row_idx == 0:
+                set_cell_shading(cell, header_fill)
+                for run in cell.paragraphs[0].runs:
+                    run.font.color.rgb = RGBColor(0x00, 0x00, 0x00)
 
 
 def add_case_content(doc, run_no, case, m, report_dir):
@@ -193,7 +324,7 @@ def add_case_content(doc, run_no, case, m, report_dir):
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
     add_run(p, "阶段二 Python 闭环联仿测试报告", size=Pt(20), bold=True,
-            color=RGBColor(0x1F, 0x3F, 0x76))
+            color=RGBColor(0x00, 0x00, 0x00))
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
     add_run(p, run_no, size=Pt(11), color=RGBColor(0x5B, 0x65, 0x73))
@@ -232,6 +363,17 @@ def add_case_content(doc, run_no, case, m, report_dir):
         row[1].paragraphs[0].text = ""
         add_run(row[0].paragraphs[0], k, bold=True)
         add_run(row[1].paragraphs[0], v)
+    for k, v in (
+            ("采样点数", str(m["sample_count"])),
+            ("采样周期中位数", "%.4g s" % m["sample_period_median_s"]),
+            ("运行完整性", m["execution_status"]),
+            ("控制性能验收", m["controller_acceptance_status"])):
+        row = tbl.add_row().cells
+        row[0].paragraphs[0].text = ""
+        row[1].paragraphs[0].text = ""
+        add_run(row[0].paragraphs[0], k, bold=True)
+        add_run(row[1].paragraphs[0], v)
+    format_table(tbl)
 
     add_heading(doc, "2. 信号来源")
     p = doc.add_paragraph()
@@ -258,12 +400,20 @@ def add_case_content(doc, run_no, case, m, report_dir):
 
     add_heading(doc, "4. 结论")
     p = doc.add_paragraph()
-    add_run(p, "本次 Python 闭环联仿完成：实际仿真 %.4g s；最大质心侧偏角 %.4g deg；"
+    add_run(p, "本次 Python 闭环联仿运行完整性判定为 %s：实际仿真 %.4g s，共 %d 个采样点；"
+               "最大质心侧偏角 %.4g deg；"
                "最大横摆角速度 %.4g deg/s；第一轴最大转角 %.4g deg、第三轴最大转角 %.4g deg。"
-               "阶跃/正弦工况下各轴转角分配符合零质心侧偏角控制规律（速度相关前馈 + β 反馈），"
-               "TCP 通信稳定。"
-               % (m["duration_s"], m["max_abs_beta_deg"], m["max_abs_yaw_degps"],
+               "控制性能尚未配置统一判定阈值，因此控制性能验收状态为 NOT_EVALUATED。"
+               % (m["execution_status"], m["duration_s"], m["sample_count"],
+                  m["max_abs_beta_deg"], m["max_abs_yaw_degps"],
                   m["max_abs_delta1_deg"], m["max_abs_delta3_deg"]))
+    p = doc.add_paragraph()
+    add_run(p, "运行完整性依据：%s。" % "；".join(m["execution_notes"]), size=Pt(10))
+    if np.isfinite(m["v_end_error_kmh"]):
+        p = doc.add_paragraph()
+        add_run(p, "观察项：结束车速相对目标车速偏差为 %+.4g km/h（%+.3g%%）；"
+                   "该数值仅记录，不在未定义阈值的情况下判定控制性能。"
+                   % (m["v_end_error_kmh"], m["v_end_error_percent"]), size=Pt(10))
     try:
         v0 = m["v_start_kmh"]
         init = float(case.get("initial_speed_kmh", 0))
